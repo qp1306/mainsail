@@ -59,17 +59,23 @@
                     </button>
                 </div>
             </div>
-            <div v-if="unloadMacro" :class="['cxm-tile', 'cxm-tile-empty', { 'cxm-tile-on': cxmTool === -1 }]">
+            <div
+                v-if="unloadMacro"
+                :class="[
+                    'cxm-tile',
+                    'cxm-tile-empty',
+                    {
+                        'cxm-tile-on': cxmTool === -1,
+                        'cxm-tile-pick': cxmTool !== -1 && !isLocked(unloadMacro.name),
+                    },
+                ]"
+                :title="cxmTool !== -1 ? 'Click to put the hotend back in its dock' : ''"
+                @click="unload">
                 <div class="d-flex align-center">
                     <span class="cxm-dot cxm-dot-empty" />
                     <span class="cxm-tile-name">EMPTY</span>
                 </div>
-                <div class="cxm-tile-state">{{ cxmTool === -1 ? 'carriage empty' : 'dock the hotend' }}</div>
-                <div class="cxm-tile-actions">
-                    <button type="button" :disabled="isLocked(unloadMacro.name)" @click="openMacro(unloadMacro)">
-                        Unload
-                    </button>
-                </div>
+                <div class="cxm-tile-state">{{ cxmTool === -1 ? 'carriage empty' : 'click to dock' }}</div>
             </div>
         </div>
 
@@ -279,9 +285,9 @@
 // every macro is listed lane by lane. Opening a job shows only what that job needs: its
 // macros as steps plus Mainsail's own panels (nozzle camera, toolhead jog, console, print
 // status) and the gantry map. Opening a job never moves the printer; only the buttons do.
-// Every Run opens a confirm dialog with the exact command, except the Z nudges and a
-// click on a hotend tile, which send at once. Macros for hotends that aren't installed
-// are hidden.
+// Every Run opens a confirm dialog with the exact command, except the Z nudges and
+// clicks on the hotend and EMPTY tiles, which send at once.
+// Macros for hotends that aren't installed are hidden.
 import Component from 'vue-class-component'
 import { Mixins } from 'vue-property-decorator'
 import CxmMixin from '@/components/mixins/cxm'
@@ -787,6 +793,13 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         if (!tile.pick || tile.mounted) return
 
         this.sendNow(tile.pick)
+    }
+
+    // clicking the EMPTY tile docks the hotend straight away (no confirm dialog)
+    unload() {
+        if (!this.unloadMacro || this.cxmTool === -1) return
+
+        this.sendNow(this.unloadMacro)
     }
 
     sendNow(macro: PrinterStateMacro) {
