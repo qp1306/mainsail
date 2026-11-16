@@ -5,10 +5,12 @@ import type { PluginOption } from 'vite'
 
 /**
  * Custom build plugin to write the version in a dedicated release_info.json file after bundling
+ * CXM: names this fork so Moonraker's update manager tracks qp1306/mainsail,
+ * and uses the CXM release tag (CXM_VERSION) when the release workflow sets it.
  */
 
 export default function buildReleaseInfo(): PluginOption {
-    const version = pkg.version
+    const version = process.env.CXM_VERSION || `v${pkg.version}`
 
     return {
         name: 'build-release_info',
@@ -21,8 +23,8 @@ export default function buildReleaseInfo(): PluginOption {
                 await releaseInfoFile.writeFile(
                     JSON.stringify({
                         project_name: 'mainsail',
-                        project_owner: 'mainsail-crew',
-                        version: `v${version}`,
+                        project_owner: 'qp1306',
+                        version: version,
                     })
                 )
                 await releaseInfoFile.close()
