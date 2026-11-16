@@ -17,7 +17,7 @@
                     rx="8"
                     class="cxm-area" />
                 <text :x="pad + 8" :y="pad + 16" class="cxm-lbl">BACK OF PRINTER</text>
-                <text :x="pad + 8" :y="height - 8" class="cxm-lbl">FRONT · DOOR</text>
+                <text :x="pad + 8" :y="pad + lim.y1 - lim.y0 - 8" class="cxm-lbl">FRONT · DOOR</text>
 
                 <!-- dock safe line -->
                 <template v-if="safeY !== null">
@@ -27,7 +27,7 @@
                     </text>
                 </template>
 
-                <!-- docks at their saved positions -->
+                <!-- docks, evenly pitched across the span they occupy (see the docks getter) -->
                 <g v-for="dock in docks" :key="dock.n" :transform="'translate(' + dock.x + ',' + dock.y + ')'">
                     <circle v-if="dock.hot && !dock.inUse" r="22" :fill="dock.color" opacity="0.3" />
                     <path d="M-17 -15 H17 V12 H8 V2 H-8 V12 H-17 Z" class="cxm-dock" />
@@ -97,7 +97,7 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
 
     // extra room at the bottom for the dock labels
     get height(): number {
-        return this.lim.y1 - this.lim.y0 + this.pad * 2 + 30
+        return this.lim.y1 - this.lim.y0 + this.pad * 2 + 40
     }
 
     toSvg(x: number, y: number): [number, number] {
@@ -136,26 +136,37 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
         return { x, y }
     }
 
+    // docks evenly pitched across the span they really occupy, in one straight row,
+    // so the map reads cleanly but the carriage still lines up when it docks
     get docks() {
-        return this.cxmTools
+        const placed = this.cxmTools
             .filter((tool) => tool.dockX !== null && tool.dockY !== null)
-            .map((tool) => {
-                const [x, y] = this.toSvg(tool.dockX as number, tool.dockY as number)
-                const inUse = tool.n === this.cxmTool
-                let sub = tool.enabled ? '' : 'off'
-                if (inUse) sub = 'on carriage'
-                else if (tool.temp !== null) sub = Math.round(tool.temp) + '°'
+            .sort((a, b) => (a.dockX as number) - (b.dockX as number))
+        if (placed.length === 0) return []
 
-                return {
-                    n: tool.n,
-                    x,
-                    y,
-                    color: tool.color,
-                    inUse,
-                    hot: tool.temp !== null && tool.temp > 50,
-                    sub,
-                }
-            })
+        const xs = placed.map((tool) => tool.dockX as number)
+        const ys = placed.map((tool) => tool.dockY as number)
+        const minX = Math.min(...xs)
+        const step = placed.length > 1 ? (Math.max(...xs) - minX) / (placed.length - 1) : 0
+        const rowY = ys.reduce((sum, y) => sum + y, 0) / ys.length
+
+        return placed.map((tool, index) => {
+            const [x, y] = this.toSvg(minX + step * index, rowY)
+            const inUse = tool.n === this.cxmTool
+            let sub = tool.enabled ? '' : 'off'
+            if (inUse) sub = 'on carriage'
+            else if (tool.temp !== null) sub = Math.round(tool.temp) + '°'
+
+            return {
+                n: tool.n,
+                x,
+                y,
+                color: tool.color,
+                inUse,
+                hot: tool.temp !== null && tool.temp > 50,
+                sub,
+            }
+        })
     }
 }
 </script>
