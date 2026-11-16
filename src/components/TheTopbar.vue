@@ -9,6 +9,7 @@
             </router-link>
             <v-toolbar-title class="text-no-wrap ml-0 pl-2 mr-2">{{ printerName }}</v-toolbar-title>
             <printer-selector v-if="countPrinters" />
+            <cxm-temp-strip v-if="klippyIsConnected" class="d-none d-md-flex" />
             <v-spacer />
             <input
                 ref="fileUploadAndStart"
@@ -91,6 +92,7 @@ import { mdiAlertOctagonOutline, mdiContentSave, mdiFileUpload, mdiClose, mdiClo
 import EmergencyStopDialog from '@/components/dialogs/EmergencyStopDialog.vue'
 import InlineSvg from 'vue-inline-svg'
 import ThemeMixin from '@/components/mixins/theme'
+import CxmTempStrip from '@/components/cxm/CxmTempStrip.vue'
 
 type uploadSnackbar = {
     status: boolean
@@ -103,6 +105,7 @@ type uploadSnackbar = {
 
 @Component({
     components: {
+        CxmTempStrip,
         EmergencyStopDialog,
         InlineSvg,
         Panel,

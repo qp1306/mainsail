@@ -17,6 +17,8 @@ import 'vue-toast-notification/dist/theme-sugar.css'
 //overlayerscrollbars-vue
 import { OverlayScrollbarsPlugin } from 'overlayscrollbars-vue'
 import 'overlayscrollbars/css/OverlayScrollbars.css'
+// CXM theme
+import './assets/styles/cxm-theme.css'
 // Directives
 import './directives/longpress'
 import './directives/responsive-class'

@@ -27,7 +27,12 @@
                         {{ printerName }}
                     </span>
                 </v-list-item>
-                <sidebar-item v-for="(category, index) in visibleNaviPoints" :key="index" :item="category" />
+                <template v-for="(category, index) in visibleNaviPoints">
+                    <v-subheader v-if="navGroupTitle(index)" :key="'cxm-group-' + index" class="cxm-nav-group">
+                        {{ navGroupTitle(index) }}
+                    </v-subheader>
+                    <sidebar-item :key="index" :item="category" />
+                </template>
             </v-list>
         </overlay-scrollbars>
         <template #append>
@@ -49,7 +54,7 @@ import AboutDialog from '@/components/dialogs/AboutDialog.vue'
 import { navigationWidth, topbarHeight } from '@/store/variables'
 import MainsailLogo from '@/components/ui/MainsailLogo.vue'
 import SidebarItem from '@/components/ui/SidebarItem.vue'
-import NavigationMixin from '@/components/mixins/navigation'
+import NavigationMixin, { NaviPoint } from '@/components/mixins/navigation'
 import ThemeMixin from '@/components/mixins/theme'
 
 @Component({
@@ -122,6 +127,23 @@ export default class TheSidebar extends Mixins(NavigationMixin, BaseMixin, Theme
             'pa-0': this.navigationStyle === 'iconsOnly',
             'justify-center': this.navigationStyle === 'iconsOnly',
         }
+    }
+
+    // CXM: "CXM" / "MAINSAIL" headings above the first entry of each group
+    isCxmPoint(point: NaviPoint): boolean {
+        return (point.to ?? '').startsWith('/cockpit')
+    }
+
+    navGroupTitle(index: number): string {
+        if (this.navigationStyle === 'iconsOnly') return ''
+
+        const points = this.visibleNaviPoints
+        const firstCxm = points.findIndex((point) => this.isCxmPoint(point))
+        if (firstCxm === -1) return ''
+        if (index === firstCxm) return 'CXM'
+        if (index === points.findIndex((point) => !this.isCxmPoint(point))) return 'MAINSAIL'
+
+        return ''
     }
 }
 </script>
