@@ -9,8 +9,8 @@ name: CXM build and release
 #   repo: qp1306/mainsail
 #   path: ~/mainsail
 #
-# Version = Mainsail's major.minor + (100 + build number), e.g. v2.19.102.
-# No "-suffix", so Moonraker treats it as a normal stable release.
+# Version = Mainsail's major.minor + (100 + build number), e.g. v2.19.103.
+# The release NAME must be the plain version: Moonraker reads its version from it.
 
 on:
   push:
@@ -53,7 +53,7 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v3
         with:
-          name: CXM ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.tag }}
           tag_name: ${{ steps.ver.outputs.tag }}
           target_commitish: ${{ github.sha }}
           files: dist/mainsail.zip
