@@ -10,6 +10,7 @@ import { AsyncComponent, Component } from 'vue'
 
 import {
     mdiGauge,
+    mdiPlaylistPlay,
     mdiMonitorDashboard,
     mdiWebcam,
     mdiConsoleLine,
@@ -31,6 +32,17 @@ const routes: AppRoute[] = [
         alwaysShow: false,
         showInNavi: true,
         position: 5,
+    },
+    {
+        name: 'cxm-macros',
+        title: 'Macros',
+        path: '/cxm/macros',
+        icon: mdiPlaylistPlay,
+        component: () => import('../pages/CxmMacros.vue'),
+        alwaysShow: false,
+        showInNavi: true,
+        klipperIsConnected: true,
+        position: 6,
     },
     {
         name: 'dashboard',

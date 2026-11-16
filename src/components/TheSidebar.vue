@@ -131,7 +131,9 @@ export default class TheSidebar extends Mixins(NavigationMixin, BaseMixin, Theme
 
     // CXM: "CXM" / "MAINSAIL" headings above the first entry of each group
     isCxmPoint(point: NaviPoint): boolean {
-        return (point.to ?? '').startsWith('/cockpit')
+        const to = point.to ?? ''
+
+        return to.startsWith('/cockpit') || to.startsWith('/cxm/')
     }
 
     navGroupTitle(index: number): string {

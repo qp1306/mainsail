@@ -21,6 +21,18 @@ interface StripItem {
     color: string
 }
 
+// short top-bar labels for long sensor names; anything else: upper case, max 10 characters
+const SHORT_NAMES: Record<string, string> = {
+    cartographer_coil: 'CARTO COIL',
+    cartographer: 'CARTO',
+    'fly-super8': 'MCU',
+    'fly-π': 'PI',
+}
+
+function shortName(name: string): string {
+    return SHORT_NAMES[name.toLowerCase()] ?? name.replace(/_/g, ' ').toUpperCase().slice(0, 10)
+}
+
 function deg(value: unknown): string {
     return typeof value === 'number' ? Math.round(value) + '°' : '–'
 }
@@ -45,7 +57,7 @@ export default class CxmTempStrip extends Mixins(CxmMixin) {
             .forEach((key) => {
                 items.push({
                     key,
-                    label: key.slice('temperature_sensor '.length).toUpperCase(),
+                    label: shortName(key.slice('temperature_sensor '.length)),
                     value: deg(printer[key].temperature),
                     color: '#8a94a8',
                 })

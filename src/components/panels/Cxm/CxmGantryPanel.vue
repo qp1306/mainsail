@@ -164,7 +164,7 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
 .cxm-map {
     width: 100%;
     height: auto;
-    max-height: 480px;
+    max-height: 360px;
     display: block;
 }
 
