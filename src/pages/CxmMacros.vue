@@ -4,7 +4,7 @@
             <div class="mr-6">
                 <div class="cxm-macros-title">MACROS</div>
                 <div class="text--secondary text-body-2">
-                    Sorted automatically · {{ macros.length }} macros · every macro asks before it runs
+                    {{ visibleMacros.length }} macros · every macro asks before it runs
                 </div>
             </div>
             <v-spacer />
@@ -25,7 +25,7 @@
         </div>
 
         <v-row>
-            <v-col class="col-12 col-md-3">
+            <v-col class="col-12 col-md-3 col-xl-2">
                 <v-card class="panel cxm-groups pa-2">
                     <v-list dense nav class="pa-0">
                         <v-list-item
@@ -47,37 +47,65 @@
                 </v-card>
             </v-col>
 
-            <v-col class="col-12 col-md-9">
+            <v-col class="col-12 col-md-9 col-xl-10">
                 <v-alert v-if="printing && activeGroupLocked" dense text type="warning" class="mb-3">
                     A print is running: macros in this group are locked until it ends.
                 </v-alert>
-                <div v-if="shownMacros.length === 0" class="text--disabled pa-6 text-center">
-                    {{ search ? 'No macro matches "' + search + '".' : 'No macros here yet.' }}
+                <div v-if="sections.length === 0" class="text--disabled pa-6 text-center">
+                    {{ search ? 'No macro matches "' + search + '".' : 'Nothing here yet.' }}
                 </div>
-                <div class="cxm-grid">
-                    <div
-                        v-for="macro in shownMacros"
-                        :key="macro.name"
-                        :class="['cxm-card', { 'cxm-card-locked': isLocked(macro.name) }]"
-                        @click="openMacro(macro)">
-                        <div class="d-flex align-start">
-                            <v-icon small class="cxm-card-icon mr-2">{{ groupOf(macro.name).icon }}</v-icon>
-                            <div class="cxm-card-body">
-                                <div class="cxm-card-title">{{ macroTitle(macro.name) }}</div>
-                                <div class="cxm-card-name">{{ macro.name.toUpperCase() }}</div>
+                <div v-for="section in sections" :key="section.id" class="mb-5">
+                    <div v-if="section.title" class="cxm-section">
+                        <v-icon x-small class="mr-2">{{ section.icon }}</v-icon>
+                        {{ section.title }}
+                        <span class="cxm-section-count">{{ section.items.length }}</span>
+                    </div>
+                    <div class="cxm-grid">
+                        <template v-for="item in section.items">
+                            <!-- one card for a numbered family (T0..Tn, AXT0..AXTn): a chip per installed hotend -->
+                            <div
+                                v-if="item.family"
+                                :key="section.id + item.key"
+                                :class="['cxm-card', 'cxm-family', { 'cxm-card-locked': isLocked(item.members[0].macro.name) }]">
+                                <div class="cxm-card-head">
+                                    <v-icon small class="cxm-card-icon">{{ groupOf(item.members[0].macro.name).icon }}</v-icon>
+                                    <span class="cxm-card-title">{{ item.family.title }}</span>
+                                </div>
+                                <div class="cxm-card-desc">{{ item.family.description }}</div>
+                                <div class="cxm-chips">
+                                    <button
+                                        v-for="member in item.members"
+                                        :key="member.macro.name"
+                                        type="button"
+                                        class="cxm-chip"
+                                        :title="member.macro.name.toUpperCase()"
+                                        :style="chipStyle(member.n)"
+                                        @click="openMacro(member.macro)">
+                                        T{{ member.n }}
+                                    </button>
+                                </div>
                             </div>
-                            <v-btn icon x-small class="ml-auto" @click.stop="toggleFavourite(macro.name)">
-                                <v-icon small :color="isFavourite(macro.name) ? 'primary' : ''">
-                                    {{ isFavourite(macro.name) ? mdiStar : mdiStarOutline }}
-                                </v-icon>
-                            </v-btn>
-                        </div>
-                        <div v-if="macro.description && macro.description !== 'G-Code macro'" class="cxm-card-desc">
-                            {{ macro.description }}
-                        </div>
-                        <div v-if="paramNames(macro).length" class="cxm-card-params">
-                            {{ paramNames(macro).join(' · ') }}
-                        </div>
+                            <div
+                                v-else
+                                :key="section.id + item.key"
+                                :class="['cxm-card', { 'cxm-card-locked': isLocked(item.macro.name) }]"
+                                :title="item.macro.name.toUpperCase()"
+                                @click="openMacro(item.macro)">
+                                <div class="cxm-card-head">
+                                    <v-icon small class="cxm-card-icon">{{ groupOf(item.macro.name).icon }}</v-icon>
+                                    <span class="cxm-card-title">{{ macroTitle(item.macro.name) }}</span>
+                                    <span v-for="param in paramNames(item.macro)" :key="param" class="cxm-tag">
+                                        {{ param.toUpperCase() }}
+                                    </span>
+                                    <v-btn icon x-small class="ml-auto cxm-star" @click.stop="toggleFavourite(item.macro.name)">
+                                        <v-icon small :color="isFavourite(item.macro.name) ? 'primary' : ''">
+                                            {{ isFavourite(item.macro.name) ? mdiStar : mdiStarOutline }}
+                                        </v-icon>
+                                    </v-btn>
+                                </div>
+                                <div class="cxm-card-desc">{{ description(item.macro) }}</div>
+                            </div>
+                        </template>
                     </div>
                 </div>
             </v-col>
@@ -88,7 +116,7 @@
                 <v-toolbar flat dense class="panel-toolbar">
                     <v-toolbar-title class="d-flex align-center">
                         <v-icon left>{{ groupOf(selected.name).icon }}</v-icon>
-                        <span class="subheading">{{ selected.name.toUpperCase() }}</span>
+                        <span class="subheading">{{ macroTitle(selected.name) }}</span>
                     </v-toolbar-title>
                     <v-spacer />
                     <v-btn icon tile @click="dialog = false">
@@ -136,13 +164,14 @@
 </template>
 
 <script lang="ts">
-// CXM Macros page: every visible Klipper macro, grouped automatically from its name,
-// with favourites and recent (kept in this browser), search (Cmd/Ctrl+K) and a
-// confirm-and-run dialog that shows the exact command. Groups that move the
-// machine are locked while a print is running.
+// CXM Macros page: every visible Klipper macro, grouped automatically from its name.
+// Numbered families (T0..Tn, AXT0..AXTn) fold into one card with a chip per installed
+// hotend; macros for hotends that aren't installed are hidden. Favourites and recent
+// are kept in this browser, search with Cmd/Ctrl+K, and every macro opens a confirm
+// dialog showing the exact command. Groups that move the machine lock during a print.
 import Component from 'vue-class-component'
 import { Mixins } from 'vue-property-decorator'
-import BaseMixin from '@/components/mixins/base'
+import CxmMixin, { CXM_DEFAULT_COLOR } from '@/components/mixins/cxm'
 import { PrinterStateMacro } from '@/store/printer/types'
 import {
     mdiAutoFix,
@@ -166,7 +195,34 @@ interface MacroGroup {
     title: string
     icon: string
     locked: boolean // locked while printing
+    first: string[] // shown first, in this order; the rest alphabetical
     match: (name: string) => boolean
+}
+
+interface MacroFamily {
+    id: string
+    title: string
+    description: string
+    pattern: RegExp
+}
+
+interface FamilyMember {
+    n: number
+    macro: PrinterStateMacro
+}
+
+interface CardItem {
+    key: string
+    macro: PrinterStateMacro
+    family: MacroFamily | null
+    members: FamilyMember[]
+}
+
+interface Section {
+    id: string
+    title: string
+    icon: string
+    items: CardItem[]
 }
 
 const GROUPS: MacroGroup[] = [
@@ -175,6 +231,7 @@ const GROUPS: MacroGroup[] = [
         title: 'Tool changes',
         icon: mdiPrinter3dNozzle,
         locked: true,
+        first: ['CXM_CHANGE', 'CXM_UNLOAD'],
         match: (n) => /^T\d+$/.test(n) || ['CXM_UNLOAD', 'CXM_CHANGE'].includes(n),
     },
     {
@@ -182,6 +239,7 @@ const GROUPS: MacroGroup[] = [
         title: 'Printing',
         icon: mdiPrinter3d,
         locked: false,
+        first: ['PRINT_START', 'PRINT_END', 'PAUSE', 'RESUME', 'CANCEL_PRINT', 'CXM_PRINT_CHECK', 'CXM_PRINT_FINISH'],
         match: (n) =>
             ['PRINT_START', 'PRINT_END', 'PAUSE', 'RESUME', 'CANCEL_PRINT'].includes(n) ||
             /^CXM_(PRINT_|Z_PLUS|Z_MINUS|Z_TRIMS|DRY_RUN|NO_PAUSE)/.test(n),
@@ -191,6 +249,7 @@ const GROUPS: MacroGroup[] = [
         title: 'Setup & calibration',
         icon: mdiTools,
         locked: true,
+        first: ['CXM_AUTO_GLOBAL_Z'],
         match: (n) =>
             /^AXT\d+$/.test(n) ||
             /^CXM_(DOCK_|CAM_|Z_CALIBRATE|Z_VERIFY|AUTO_GLOBAL_Z|SAVE_Z_BIAS|SET_OFFSET|TOOL_ENABLE)/.test(n),
@@ -200,6 +259,7 @@ const GROUPS: MacroGroup[] = [
         title: 'Tests',
         icon: mdiFlaskOutline,
         locked: true,
+        first: ['CXM_TEST', 'CXM_TEST_STOP'],
         match: (n) => n.startsWith('CXM_TEST'),
     },
     {
@@ -207,10 +267,21 @@ const GROUPS: MacroGroup[] = [
         title: 'Status & recovery',
         icon: mdiLifebuoy,
         locked: false,
+        first: ['CXM_STATUS', 'CXM_RESUME', 'CXM_SET_TOOL', 'CXM_SETTINGS', 'CXM_HELP'],
         match: (n) => /^CXM_(STATUS|HELP|SET_TOOL|RESUME|SETTINGS)$/.test(n),
     },
-    { id: 'cxm', title: 'Other CXM', icon: mdiAutoFix, locked: true, match: (n) => n.startsWith('CXM') },
-    { id: 'other', title: 'Other macros', icon: mdiCodeBraces, locked: false, match: () => true },
+    { id: 'cxm', title: 'Other CXM', icon: mdiAutoFix, locked: true, first: [], match: (n) => n.startsWith('CXM') },
+    { id: 'other', title: 'Other macros', icon: mdiCodeBraces, locked: false, first: [], match: () => true },
+]
+
+const FAMILIES: MacroFamily[] = [
+    { id: 'pick', title: 'Pick up hotend', description: 'Tap a hotend to load it', pattern: /^T(\d+)$/ },
+    {
+        id: 'axt',
+        title: 'Camera align',
+        description: 'Save the hotend now over the camera, then bring the one you tap',
+        pattern: /^AXT(\d+)$/,
+    },
 ]
 
 const FAV_KEY = 'cxm.macroFavourites'
@@ -233,8 +304,17 @@ function saveList(key: string, list: string[]) {
     }
 }
 
+function familyOf(name: string): { family: MacroFamily; n: number } | null {
+    for (const family of FAMILIES) {
+        const match = name.toUpperCase().match(family.pattern)
+        if (match) return { family, n: parseInt(match[1]) }
+    }
+
+    return null
+}
+
 @Component
-export default class PageCxmMacros extends Mixins(BaseMixin) {
+export default class PageCxmMacros extends Mixins(CxmMixin) {
     mdiClose = mdiClose
     mdiMagnify = mdiMagnify
     mdiPlay = mdiPlay
@@ -253,12 +333,24 @@ export default class PageCxmMacros extends Mixins(BaseMixin) {
         return navigator.platform.toUpperCase().includes('MAC')
     }
 
-    get macros(): PrinterStateMacro[] {
-        return this.$store.getters['printer/getMacros'] ?? []
-    }
-
     get printing(): boolean {
         return ['printing', 'paused'].includes(this.printer_state)
+    }
+
+    get installedTools(): number[] {
+        return this.cxmTools.map((tool) => tool.n)
+    }
+
+    // every macro except the numbered ones for hotends that aren't installed
+    get visibleMacros(): PrinterStateMacro[] {
+        const macros: PrinterStateMacro[] = this.$store.getters['printer/getMacros'] ?? []
+        if (this.installedTools.length === 0) return macros
+
+        return macros.filter((macro) => {
+            const member = familyOf(macro.name)
+
+            return member === null || this.installedTools.includes(member.n)
+        })
     }
 
     groupOf(name: string): MacroGroup {
@@ -275,48 +367,130 @@ export default class PageCxmMacros extends Mixins(BaseMixin) {
         return GROUPS.some((group) => group.id === this.activeGroup && group.locked)
     }
 
+    get searchedMacros(): PrinterStateMacro[] {
+        const query = (this.search ?? '').trim().toLowerCase()
+        if (!query) return this.visibleMacros
+
+        return this.visibleMacros.filter((macro) => {
+            const family = familyOf(macro.name)?.family
+            const text = [macro.name, macro.description ?? '', this.macroTitle(macro.name), family?.title ?? '']
+
+            return text.join(' ').toLowerCase().includes(query)
+        })
+    }
+
+    sortKey(group: MacroGroup, name: string): string {
+        const upper = name.toUpperCase()
+        if (familyOf(upper)) return '0'
+        const index = group.first.indexOf(upper)
+
+        return index === -1 ? '2' + this.macroTitle(upper) : '1' + String(index).padStart(2, '0')
+    }
+
+    // fold numbered families into one card; other macros stay one card each
+    cards(macros: PrinterStateMacro[], foldFamilies = true): CardItem[] {
+        const items: CardItem[] = []
+        const byFamily: Record<string, CardItem> = {}
+
+        macros.forEach((macro) => {
+            const member = foldFamilies ? familyOf(macro.name) : null
+            if (member === null) {
+                items.push({ key: macro.name, macro, family: null, members: [] })
+                return
+            }
+            let item = byFamily[member.family.id]
+            if (!item) {
+                item = { key: '@' + member.family.id, macro, family: member.family, members: [] }
+                byFamily[member.family.id] = item
+                items.push(item)
+            }
+            item.members.push({ n: member.n, macro })
+        })
+        items.forEach((item) => item.members.sort((a, b) => a.n - b.n))
+
+        return items
+    }
+
+    groupCards(group: MacroGroup, macros: PrinterStateMacro[]): CardItem[] {
+        const inGroup = macros
+            .filter((macro) => this.groupOf(macro.name).id === group.id)
+            .sort((a, b) => this.sortKey(group, a.name).localeCompare(this.sortKey(group, b.name)))
+
+        return this.cards(inGroup)
+    }
+
+    get favouriteMacros(): PrinterStateMacro[] {
+        return this.favourites
+            .map((name) => this.visibleMacros.find((m) => m.name.toUpperCase() === name))
+            .filter((m): m is PrinterStateMacro => m !== undefined)
+    }
+
+    get recentMacros(): PrinterStateMacro[] {
+        return this.recent
+            .map((name) => this.visibleMacros.find((m) => m.name.toUpperCase() === name))
+            .filter((m): m is PrinterStateMacro => m !== undefined)
+    }
+
     get groupList() {
-        const byName = (names: string[]) => this.macros.filter((m) => names.includes(m.name.toUpperCase())).length
         const list = [
-            { id: 'all', title: 'All macros', icon: mdiViewGridOutline, count: this.macros.length },
-            { id: 'favourites', title: 'Favourites', icon: mdiStar, count: byName(this.favourites) },
-            { id: 'recent', title: 'Recent', icon: mdiHistory, count: byName(this.recent) },
+            { id: 'all', title: 'All macros', icon: mdiViewGridOutline, count: this.cards(this.visibleMacros).length },
+            { id: 'favourites', title: 'Favourites', icon: mdiStar, count: this.favouriteMacros.length },
+            { id: 'recent', title: 'Recent', icon: mdiHistory, count: this.recentMacros.length },
         ]
         GROUPS.forEach((group) => {
-            const count = this.macros.filter((m) => this.groupOf(m.name).id === group.id).length
+            const count = this.groupCards(group, this.visibleMacros).length
             if (count) list.push({ id: group.id, title: group.title, icon: group.icon, count })
         })
 
         return list
     }
 
-    get shownMacros(): PrinterStateMacro[] {
-        let list = this.macros
-        if (this.activeGroup === 'favourites') list = list.filter((m) => this.isFavourite(m.name))
-        else if (this.activeGroup === 'recent')
-            list = this.recent
-                .map((name) => this.macros.find((m) => m.name.toUpperCase() === name))
-                .filter((m): m is PrinterStateMacro => m !== undefined)
-        else if (this.activeGroup !== 'all') list = list.filter((m) => this.groupOf(m.name).id === this.activeGroup)
+    get sections(): Section[] {
+        const searched = this.searchedMacros
+        const keep = (list: PrinterStateMacro[]) => list.filter((m) => searched.includes(m))
 
-        const query = (this.search ?? '').trim().toLowerCase()
-        if (query)
-            list = list.filter(
-                (m) => m.name.toLowerCase().includes(query) || (m.description ?? '').toLowerCase().includes(query)
-            )
+        if (this.activeGroup === 'favourites') {
+            const items = this.cards(keep(this.favouriteMacros), false)
+            return items.length ? [{ id: 'favourites', title: '', icon: mdiStar, items }] : []
+        }
+        if (this.activeGroup === 'recent') {
+            const items = this.cards(keep(this.recentMacros), false)
+            return items.length ? [{ id: 'recent', title: '', icon: mdiHistory, items }] : []
+        }
 
-        return list
+        const sections: Section[] = []
+        const all = this.activeGroup === 'all'
+        if (all && !this.search) {
+            const favourites = this.cards(this.favouriteMacros, false)
+            if (favourites.length) sections.push({ id: 'favourites', title: 'Favourites', icon: mdiStar, items: favourites })
+        }
+        GROUPS.filter((group) => all || group.id === this.activeGroup).forEach((group) => {
+            const items = this.groupCards(group, searched)
+            if (items.length) sections.push({ id: group.id, title: all ? group.title : '', icon: group.icon, items })
+        })
+
+        return sections
     }
 
     macroTitle(name: string): string {
-        const words = name
-            .toUpperCase()
+        const upper = name.toUpperCase()
+        if (/^T\d+$/.test(upper)) return 'Pick up ' + upper
+        if (/^AXT\d+$/.test(upper)) return 'Camera align → T' + upper.slice(3)
+
+        const words = upper
             .replace(/^CXM_/, '')
             .split('_')
             .filter((word) => word !== '')
-            .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+            .map((word) => word.toLowerCase())
+        const title = words.join(' ')
 
-        return words.join(' ')
+        return title.charAt(0).toUpperCase() + title.slice(1)
+    }
+
+    description(macro: PrinterStateMacro): string {
+        const text = macro.description ?? ''
+
+        return text === 'G-Code macro' ? '' : text
     }
 
     paramNames(macro: PrinterStateMacro): string[] {
@@ -325,6 +499,13 @@ export default class PageCxmMacros extends Mixins(BaseMixin) {
 
     paramDefault(macro: PrinterStateMacro, param: string): string {
         return macro.params?.[param]?.default ?? ''
+    }
+
+    chipStyle(n: number): Record<string, string> {
+        const tool = this.cxmTools.find((t) => t.n === n)
+        const color = tool?.color ?? CXM_DEFAULT_COLOR
+
+        return { background: color, color: this.cxmTextOn(color) }
     }
 
     get command(): string {
@@ -431,66 +612,150 @@ export default class PageCxmMacros extends Mixins(BaseMixin) {
     opacity: 0.6;
 }
 
+.cxm-section {
+    display: flex;
+    align-items: center;
+    margin: 0 0 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8a94a8;
+}
+
+.cxm-section .v-icon {
+    color: #ff8a1f !important;
+}
+
+.cxm-section::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    margin-left: 12px;
+    background: #263045;
+}
+
+.cxm-section-count {
+    margin-left: 8px;
+    opacity: 0.6;
+}
+
 .cxm-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-    grid-gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    grid-auto-rows: 80px;
+    grid-gap: 10px;
 }
 
 .cxm-card {
-    padding: 12px 12px 10px;
-    border-radius: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
     border: 1px solid #263045;
-    background: linear-gradient(180deg, #1a2130, #141a26);
+    background: #161d2a;
     cursor: pointer;
+    overflow: hidden;
     transition:
         border-color 0.2s,
-        box-shadow 0.2s,
-        transform 0.2s;
+        box-shadow 0.2s;
 }
 
 .cxm-card:hover {
     border-color: rgba(255, 138, 31, 0.6);
-    box-shadow: 0 0 18px -8px rgba(255, 138, 31, 0.8);
-    transform: translateY(-1px);
+    box-shadow: 0 0 16px -8px rgba(255, 138, 31, 0.8);
+}
+
+.cxm-family {
+    grid-column: span 2;
+    grid-row: span 2;
+    cursor: default;
+}
+
+@media (max-width: 600px) {
+    .cxm-family {
+        grid-column: auto;
+    }
 }
 
 .cxm-card-locked {
     opacity: 0.45;
+    pointer-events: none;
+}
+
+.cxm-card-head {
+    display: flex;
+    align-items: center;
+    min-width: 0;
 }
 
 .cxm-card-icon {
     color: #ff8a1f !important;
-    margin-top: 2px;
-}
-
-.cxm-card-body {
-    min-width: 0;
+    margin-right: 8px;
 }
 
 .cxm-card-title {
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.cxm-card-name {
+.cxm-tag {
+    flex-shrink: 0;
+    margin-left: 6px;
+    padding: 0 5px;
     font-family: Menlo, Consolas, monospace;
-    font-size: 11px;
-    opacity: 0.55;
-    word-break: break-all;
+    font-size: 9px;
+    line-height: 15px;
+    color: #ffb35c;
+    border: 1px solid rgba(255, 138, 31, 0.35);
+    border-radius: 4px;
+}
+
+.cxm-star {
+    flex-shrink: 0;
+    opacity: 0.5;
+}
+
+.cxm-card:hover .cxm-star {
+    opacity: 1;
 }
 
 .cxm-card-desc {
+    margin-top: 5px;
     font-size: 12px;
-    opacity: 0.75;
-    margin-top: 6px;
+    line-height: 1.35;
+    color: #8a94a8;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-.cxm-card-params {
-    font-family: Menlo, Consolas, monospace;
-    font-size: 10px;
-    color: #ffb35c;
-    margin-top: 6px;
+.cxm-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.cxm-chip {
+    min-width: 46px;
+    height: 40px;
+    padding: 0 8px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    font-family: 'Rajdhani', 'Avenir Next Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    transition:
+        transform 0.15s,
+        box-shadow 0.15s;
+}
+
+.cxm-chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 14px -4px rgba(255, 138, 31, 0.9);
 }
 
 .cxm-preview {
