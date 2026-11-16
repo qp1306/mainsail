@@ -1,0 +1,60 @@
+name: CXM build and release
+
+# Builds Mainsail from the cxm branch and publishes mainsail.zip as a
+# GitHub release. Moonraker's update manager installs it from there:
+#
+#   [update_manager mainsail]
+#   type: web
+#   channel: stable
+#   repo: qp1306/mainsail
+#   path: ~/mainsail
+
+on:
+  push:
+    branches: [cxm]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Version
+        id: ver
+        shell: bash
+        run: |
+          BASE=$(node -p "require('./package.json').version")
+          echo "tag=v${BASE}-cxm.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        env:
+          CXM_VERSION: ${{ steps.ver.outputs.tag }}
+        run: npm run build
+
+      - name: Check release_info.json
+        run: unzip -p dist/mainsail.zip release_info.json
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: CXM ${{ steps.ver.outputs.tag }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: dist/mainsail.zip
+          prerelease: false
+          make_latest: true
+          body: |
+            CXM edition of Mainsail, built from ${{ github.sha }}.
