@@ -7,7 +7,7 @@
             <v-alert v-if="alertText" dense text type="error" class="ma-3 mb-0">{{ alertText }}</v-alert>
             <div class="d-flex flex-wrap align-center px-4 pt-4">
                 <div class="cxm-mounted mr-6 mb-3" :style="mountedStyle">
-                    <span v-if="mounted" class="cxm-ball" :style="ballStyle(mounted.color)">T{{ mounted.n }}</span>
+                    <span v-if="mountedTool" class="cxm-ball" :style="ballStyle(mountedTool.color)">T{{ mountedTool.n }}</span>
                     <span class="cxm-mounted-text">{{ mountedText }}</span>
                 </div>
                 <div class="cxm-kv mr-6 mb-3">
@@ -16,12 +16,12 @@
                 </div>
                 <div class="cxm-kv mr-6 mb-3">
                     <small>TOOL OFFSET</small>
-                    <span>{{ mounted ? 'X' + fmt(mounted.offX, 2) + ' Y' + fmt(mounted.offY, 2) : '–' }}</span>
+                    <span>{{ mountedTool ? 'X' + fmt(mountedTool.offX, 2) + ' Y' + fmt(mountedTool.offY, 2) : '–' }}</span>
                 </div>
                 <div class="cxm-kv mr-6 mb-3">
                     <small>TRIM</small>
-                    <span :class="mounted && mounted.trim ? 'primary--text' : ''">
-                        {{ mounted ? fmt(mounted.trim, 3) : '–' }}
+                    <span :class="mountedTool && mountedTool.trim ? 'primary--text' : ''">
+                        {{ mountedTool ? fmt(mountedTool.trim, 3) : '–' }}
                     </span>
                 </div>
                 <div class="cxm-kv mb-3">
@@ -89,7 +89,8 @@ import { mdiPrinter3dNozzle } from '@mdi/js'
 export default class CxmToolsPanel extends Mixins(CxmMixin) {
     mdiPrinter3dNozzle = mdiPrinter3dNozzle
 
-    get mounted(): CxmTool | null {
+    // not "mounted": that name is reserved for the Vue lifecycle hook
+    get mountedTool(): CxmTool | null {
         return this.cxmTools.find((tool) => tool.n === this.cxmTool) ?? null
     }
 
@@ -101,7 +102,7 @@ export default class CxmToolsPanel extends Mixins(CxmMixin) {
     }
 
     get mountedStyle(): Record<string, string> {
-        const color = this.mounted ? this.mounted.color : this.cxmTool === -2 ? '#ff4d5e' : '#5b6472'
+        const color = this.mountedTool ? this.mountedTool.color : this.cxmTool === -2 ? '#ff4d5e' : '#5b6472'
 
         return { borderColor: color, boxShadow: '0 0 16px -6px ' + color }
     }
