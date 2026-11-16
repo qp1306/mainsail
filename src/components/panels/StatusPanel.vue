@@ -5,7 +5,7 @@
         <panel
             v-if="klipperReadyForGui"
             :icon="mdiInformation"
-            :title="printerStateOutput"
+            :title="showStateChip ? '' : printerStateOutput"
             :collapsible="true"
             card-class="status-panel">
             <template #icon>
@@ -17,6 +17,10 @@
                     :value="printPercent"
                     color="primary"
                     class="mr-3" />
+                <v-chip v-else-if="showStateChip" small outlined :color="stateChip.color" class="cxm-state-chip">
+                    <v-icon left small>{{ stateChip.icon }}</v-icon>
+                    {{ printerStateOutput }}
+                </v-chip>
             </template>
             <template #buttons>
                 <v-btn
@@ -24,15 +28,17 @@
                     :key="button.loadingName"
                     :color="button.color"
                     :loading="loadings.includes(button.loadingName)"
-                    icon
+                    :icon="!button.label"
+                    :text="!!button.label"
                     tile
                     @click="button.click">
                     <v-tooltip top>
                         <template #activator="{ on, attrs }">
-                            <v-icon v-bind="attrs" v-on="on">{{ button.icon }}</v-icon>
+                            <v-icon v-bind="attrs" :left="!!button.label" v-on="on">{{ button.icon }}</v-icon>
                         </template>
                         <span>{{ button.text }}</span>
                     </v-tooltip>
+                    <span v-if="button.label" class="cxm-btn-label">{{ button.label }}</span>
                 </v-btn>
                 <v-menu v-if="multiFunctionButton" left offset-y :close-on-content-click="false" class="pa-0">
                     <template #activator="{ on, attrs }">
@@ -90,17 +96,21 @@
             </template>
             <v-tabs v-model="activeTab" fixed-tabs>
                 <v-tab v-if="current_filename" href="#status">
-                    <v-icon>{{ mdiSpeedometer }}</v-icon>
+                    <v-icon small>{{ mdiSpeedometer }}</v-icon>
+                    <span class="cxm-tab-label">Status</span>
                 </v-tab>
                 <v-tab v-if="displayFilesTab" href="#files">
-                    <v-icon>{{ mdiFileDocumentMultipleOutline }}</v-icon>
+                    <v-icon small>{{ mdiFileDocumentMultipleOutline }}</v-icon>
+                    <span class="cxm-tab-label">Files</span>
                 </v-tab>
                 <v-tab v-if="displayHistoryTab" href="#history">
-                    <v-icon>{{ mdiHistory }}</v-icon>
+                    <v-icon small>{{ mdiHistory }}</v-icon>
+                    <span class="cxm-tab-label">History</span>
                 </v-tab>
                 <v-tab href="#jobqueue">
                     <v-badge :color="jobQueueBadgeColor" :content="jobsCount.toString()" :inline="true">
-                        <v-icon color="disabled">{{ mdiTrayFull }}</v-icon>
+                        <v-icon small color="disabled">{{ mdiTrayFull }}</v-icon>
+                        <span class="cxm-tab-label">Queue</span>
                     </v-badge>
                 </v-tab>
             </v-tabs>
@@ -146,8 +156,11 @@ import StatusPanelPrintstatusThumbnail from '@/components/panels/Status/Printsta
 import StatusPanelPauseAtLayerDialog from '@/components/panels/Status/PauseAtLayerDialog.vue'
 import Panel from '@/components/ui/Panel.vue'
 import {
+    mdiAlertCircleOutline,
     mdiAlertOutline,
     mdiBroom,
+    mdiCancel,
+    mdiCheck,
     mdiCloseCircle,
     mdiDotsVertical,
     mdiFileDocumentMultipleOutline,
@@ -159,6 +172,7 @@ import {
     mdiPlay,
     mdiPrinter,
     mdiSelectionRemove,
+    mdiSleep,
     mdiSpeedometer,
     mdiStop,
     mdiStopCircleOutline,
@@ -243,10 +257,29 @@ export default class StatusPanel extends Mixins(BaseMixin) {
         return this.$t('Panels.StatusPanel.Unknown')
     }
 
+    // CXM: coloured state chip in the panel header (not while printing/paused: those keep the progress circle)
+    get showStateChip(): boolean {
+        return ['complete', 'cancelled', 'error', 'standby'].includes(this.printer_state)
+    }
+
+    get stateChip(): { color: string; icon: string } {
+        switch (this.printer_state) {
+            case 'complete':
+                return { color: 'success', icon: mdiCheck }
+            case 'cancelled':
+                return { color: 'warning', icon: mdiCancel }
+            case 'error':
+                return { color: 'error', icon: mdiAlertCircleOutline }
+            default:
+                return { color: 'grey', icon: mdiSleep }
+        }
+    }
+
     get toolbarButtons() {
         return [
             {
                 text: this.$t('Panels.StatusPanel.PausePrint'),
+                label: '',
                 color: 'warning',
                 icon: mdiPause,
                 loadingName: 'statusPrintPause',
@@ -255,6 +288,7 @@ export default class StatusPanel extends Mixins(BaseMixin) {
             },
             {
                 text: this.$t('Panels.StatusPanel.ResumePrint'),
+                label: '',
                 color: 'success',
                 icon: mdiPlay,
                 loadingName: 'statusPrintResume',
@@ -263,6 +297,7 @@ export default class StatusPanel extends Mixins(BaseMixin) {
             },
             {
                 text: this.$t('Panels.StatusPanel.CancelPrint'),
+                label: '',
                 color: 'error',
                 icon: mdiStop,
                 loadingName: 'statusPrintCancel',
@@ -276,6 +311,7 @@ export default class StatusPanel extends Mixins(BaseMixin) {
             },
             {
                 text: this.$t('Panels.StatusPanel.ExcludeObject.ExcludeObject'),
+                label: '',
                 color: 'warning',
                 icon: mdiSelectionRemove,
                 loadingName: 'excludeObjectButton',
@@ -288,6 +324,7 @@ export default class StatusPanel extends Mixins(BaseMixin) {
             },
             {
                 text: this.$t('Panels.StatusPanel.PauseAtLayer.PauseAtLayer'),
+                label: '',
                 color: 'warning',
                 icon: mdiLayersPlus,
                 loadingName: 'pauseAtLayer',
@@ -299,20 +336,22 @@ export default class StatusPanel extends Mixins(BaseMixin) {
                 click: this.btnPauseAtLayer,
             },
             {
-                text: this.$t('Panels.StatusPanel.ClearPrintStats'),
-                color: 'primary',
-                icon: mdiBroom,
-                loadingName: 'statusPrintClear',
-                status: () => ['error', 'complete', 'cancelled'].includes(this.printer_state),
-                click: this.btnClearJob,
-            },
-            {
                 text: this.$t('Panels.StatusPanel.ReprintJob'),
+                label: 'Reprint',
                 color: 'primary',
                 icon: mdiPrinter,
                 loadingName: 'statusPrintReprint',
                 status: () => ['error', 'complete', 'cancelled'].includes(this.printer_state),
                 click: this.btnReprintJob,
+            },
+            {
+                text: this.$t('Panels.StatusPanel.ClearPrintStats'),
+                label: 'Clear',
+                color: '',
+                icon: mdiBroom,
+                loadingName: 'statusPrintClear',
+                status: () => ['error', 'complete', 'cancelled'].includes(this.printer_state),
+                click: this.btnClearJob,
             },
         ]
     }
@@ -466,5 +505,23 @@ export default class StatusPanel extends Mixins(BaseMixin) {
 
 .theme--dark.v-tabs > .v-tabs-bar .v-tab:not(.v-tab--active) > .v-badge > .v-icon {
     color: rgba(255, 255, 255, 0.6);
+}
+
+/* CXM */
+.cxm-state-chip {
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.cxm-btn-label {
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.cxm-tab-label {
+    margin-left: 6px;
+    font-size: 11px;
+    letter-spacing: 1px;
 }
 </style>
