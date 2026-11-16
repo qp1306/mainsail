@@ -11,12 +11,15 @@
             @focus="focus = true"
             @blur="focus = false">
             <v-card-title class="white--text py-2 px-2" :style="styleThumbnailOverlay">
-                <v-row>
-                    <v-col>
+                <v-row class="flex-nowrap">
+                    <v-col style="min-width: 0">
                         <span class="subtitle-2 text-truncate px-0 text--disabled d-block">
                             <v-icon small class="mr-2">{{ mdiFileOutline }}</v-icon>
                             {{ current_filename }}
                         </span>
+                    </v-col>
+                    <v-col v-if="filamentInfo" class="col-auto">
+                        <span class="subtitle-2 primary--text text-no-wrap">{{ filamentInfo }}</span>
                     </v-col>
                 </v-row>
             </v-card-title>
@@ -108,6 +111,17 @@ export default class StatusPanelPrintstatusThumbnail extends Mixins(BaseMixin) {
 
     get current_file() {
         return this.$store.state.printer.current_file ?? {}
+    }
+
+    // CXM: filament type(s) from the slicer metadata, e.g. "ABS" or "PLA / PETG"
+    get filamentInfo(): string {
+        const raw = String(this.current_file.filament_type ?? '')
+        const types = raw
+            .split(';')
+            .map((type: string) => type.trim())
+            .filter((type: string) => type !== '')
+
+        return Array.from(new Set(types)).join(' / ')
     }
 
     get thumbnailBig() {

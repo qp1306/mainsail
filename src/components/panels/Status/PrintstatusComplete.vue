@@ -1,4 +1,10 @@
-<style scoped></style>
+<style scoped>
+/* CXM */
+.cxm-print-diff {
+    display: block;
+    font-size: 11px;
+}
+</style>
 
 <template>
     <v-card-text class="pa-0">
@@ -22,6 +28,7 @@
                     <strong>{{ $t('Panels.StatusPanel.Print') }}</strong>
                     <br />
                     <span class="text-no-wrap">{{ print_time ? formatTime(print_time) : '--' }}</span>
+                    <span v-if="printDiff" :class="['cxm-print-diff', printDiff.cls]">{{ printDiff.text }}</span>
                 </v-col>
                 <v-col class="col-3 pa-0">
                     <strong>{{ $t('Panels.StatusPanel.Total') }}</strong>
@@ -30,6 +37,9 @@
                         {{ print_time_total ? formatTime(print_time_total) : '--' }}
                     </span>
                 </v-col>
+            </v-row>
+            <v-row v-if="printer_state === 'complete'" class="px-3 pb-3 mt-0">
+                <v-progress-linear :value="100" color="success" height="6" rounded />
             </v-row>
         </v-container>
     </v-card-text>
@@ -64,6 +74,18 @@ export default class StatusPanelPrintstatusComplete extends Mixins(BaseMixin) {
 
     get print_time_total() {
         return this.$store.state.printer.print_stats?.total_duration ?? 0
+    }
+
+    // CXM: how the real print time compared with the slicer's estimate
+    get printDiff(): { text: string; cls: string } | null {
+        const estimate = this.current_file.estimated_time ?? 0
+        if (!estimate || !this.print_time) return null
+
+        const minutes = Math.round((estimate - this.print_time) / 60)
+        if (minutes === 0) return { text: 'on time', cls: 'success--text' }
+        if (minutes > 0) return { text: minutes + 'm faster', cls: 'success--text' }
+
+        return { text: -minutes + 'm slower', cls: 'warning--text' }
     }
 
     formatTime(seconds: number) {
