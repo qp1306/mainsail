@@ -4,7 +4,7 @@
             <div class="mr-6">
                 <div class="cxm-macros-title">MACROS</div>
                 <div class="text--secondary text-body-2">
-                    Hotends on top · then set up, print, fix · ★ pins a macro to the top of its lane
+                    Click a hotend to pick it up · then set up, print, fix · ★ pins a macro to its lane
                 </div>
             </div>
             <v-spacer />
@@ -29,7 +29,16 @@
             <div
                 v-for="tile in tiles"
                 :key="tile.n"
-                :class="['cxm-tile', { 'cxm-tile-on': tile.mounted, 'cxm-tile-off': !tile.enabled }]">
+                :class="[
+                    'cxm-tile',
+                    {
+                        'cxm-tile-on': tile.mounted,
+                        'cxm-tile-off': !tile.enabled,
+                        'cxm-tile-pick': tile.pick && !tile.mounted && !isLocked(tile.pick.name),
+                    },
+                ]"
+                :title="tile.pick && !tile.mounted ? 'Click to pick up T' + tile.n : ''"
+                @click="pickUp(tile)">
                 <div class="d-flex align-center">
                     <span class="cxm-dot" :style="{ background: tile.color }" />
                     <span class="cxm-tile-name">T{{ tile.n }}</span>
@@ -43,7 +52,7 @@
                         type="button"
                         :disabled="isLocked(action.macro.name)"
                         :title="action.hint"
-                        @click="openMacro(action.macro, action.preset)">
+                        @click.stop="openMacro(action.macro, action.preset)">
                         {{ action.label }}
                     </button>
                 </div>
@@ -170,7 +179,8 @@
 
 <script lang="ts">
 // CXM Macros page.
-// Top: a tile per installed hotend (pick up, camera align, go to camera) plus "empty carriage".
+// Top: a tile per installed hotend (click the tile to pick it up; camera align and go to
+// camera buttons) plus "empty carriage".
 // Below: three lanes in the order you use them (set up, print, fix) as compact rows with a
 // Run button; macros that aren't CXM go in a fourth "other" lane. Every Run opens a confirm
 // dialog with the exact command, except the small Z nudges, which send at once.
@@ -329,7 +339,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
             const actions: TileAction[] = []
             const pick = this.macro('T' + tool.n)
             const align = this.macro('AXT' + tool.n)
-            if (pick) actions.push({ label: 'Pick', hint: 'Pick up T' + tool.n, macro: pick, preset: {} })
             if (align)
                 actions.push({
                     label: 'Align',
@@ -354,6 +363,7 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
                 temp: tool.temp === null ? '' : Math.round(tool.temp) + '°',
                 mounted,
                 enabled: tool.enabled,
+                pick,
                 state,
                 actions,
             }
@@ -491,6 +501,13 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         this.dialog = true
     }
 
+    // clicking a hotend tile picks it up straight away (no confirm dialog)
+    pickUp(tile: { pick: PrinterStateMacro | null; mounted: boolean }) {
+        if (!tile.pick || tile.mounted) return
+
+        this.sendNow(tile.pick)
+    }
+
     sendNow(macro: PrinterStateMacro) {
         if (this.isLocked(macro.name)) return
 
@@ -555,6 +572,18 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     border-radius: 12px;
     border: 1px solid #263045;
     background: #161d2a;
+}
+
+.cxm-tile-pick {
+    cursor: pointer;
+    transition:
+        border-color 0.15s,
+        box-shadow 0.15s;
+}
+
+.cxm-tile-pick:hover {
+    border-color: rgba(255, 138, 31, 0.7);
+    box-shadow: 0 0 16px -8px rgba(255, 138, 31, 0.9);
 }
 
 .cxm-tile-on {
