@@ -4,7 +4,7 @@
             <div class="mr-6">
                 <div class="cxm-macros-title">MACROS</div>
                 <div class="text--secondary text-body-2">
-                    {{ visibleMacros.length }} macros · every macro asks before it runs
+                    Hotends on top · then set up, print, fix · ★ pins a macro to the top of its lane
                 </div>
             </div>
             <v-spacer />
@@ -12,7 +12,7 @@
                 ref="search"
                 v-model="search"
                 class="cxm-macros-search"
-                placeholder="Search name or description…"
+                placeholder="Search macros…"
                 outlined
                 dense
                 clearable
@@ -24,88 +24,96 @@
             </v-text-field>
         </div>
 
-        <v-row>
-            <v-col class="col-12 col-md-3 col-xl-2">
-                <v-card class="panel cxm-groups pa-2">
-                    <v-list dense nav class="pa-0">
-                        <v-list-item
-                            v-for="group in groupList"
-                            :key="group.id"
-                            :class="{ 'cxm-group-active': group.id === activeGroup }"
-                            @click="selectGroup(group.id)">
-                            <v-list-item-icon class="mr-3">
-                                <v-icon small>{{ group.icon }}</v-icon>
-                            </v-list-item-icon>
-                            <v-list-item-content>
-                                <v-list-item-title>{{ group.title }}</v-list-item-title>
-                            </v-list-item-content>
-                            <v-list-item-action class="my-0">
-                                <span class="cxm-count">{{ group.count }}</span>
-                            </v-list-item-action>
-                        </v-list-item>
-                    </v-list>
-                </v-card>
-            </v-col>
-
-            <v-col class="col-12 col-md-9 col-xl-10">
-                <v-alert v-if="printing && activeGroupLocked" dense text type="warning" class="mb-3">
-                    A print is running: macros in this group are locked until it ends.
-                </v-alert>
-                <div v-if="sections.length === 0" class="text--disabled pa-6 text-center">
-                    {{ search ? 'No macro matches "' + search + '".' : 'Nothing here yet.' }}
+        <!-- hotend tiles: one per installed hotend, plus "empty carriage" -->
+        <div v-if="tiles.length" class="cxm-tiles mb-5">
+            <div
+                v-for="tile in tiles"
+                :key="tile.n"
+                :class="['cxm-tile', { 'cxm-tile-on': tile.mounted, 'cxm-tile-off': !tile.enabled }]">
+                <div class="d-flex align-center">
+                    <span class="cxm-dot" :style="{ background: tile.color }" />
+                    <span class="cxm-tile-name">T{{ tile.n }}</span>
+                    <span class="cxm-tile-temp">{{ tile.temp }}</span>
                 </div>
-                <div v-for="section in sections" :key="section.id" class="mb-5">
-                    <div v-if="section.title" class="cxm-section">
-                        <v-icon x-small class="mr-2">{{ section.icon }}</v-icon>
-                        {{ section.title }}
-                        <span class="cxm-section-count">{{ section.items.length }}</span>
+                <div class="cxm-tile-state">{{ tile.state }}</div>
+                <div class="cxm-tile-actions">
+                    <button
+                        v-for="action in tile.actions"
+                        :key="action.label"
+                        type="button"
+                        :disabled="isLocked(action.macro.name)"
+                        :title="action.hint"
+                        @click="openMacro(action.macro, action.preset)">
+                        {{ action.label }}
+                    </button>
+                </div>
+            </div>
+            <div v-if="unloadMacro" :class="['cxm-tile', 'cxm-tile-empty', { 'cxm-tile-on': cxmTool === -1 }]">
+                <div class="d-flex align-center">
+                    <span class="cxm-dot cxm-dot-empty" />
+                    <span class="cxm-tile-name">EMPTY</span>
+                </div>
+                <div class="cxm-tile-state">{{ cxmTool === -1 ? 'carriage empty' : 'dock the hotend' }}</div>
+                <div class="cxm-tile-actions">
+                    <button type="button" :disabled="isLocked(unloadMacro.name)" @click="openMacro(unloadMacro)">
+                        Unload
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <v-alert v-if="printing" dense text type="info" class="mb-4">
+            A print is running: hotend changes and set-up macros are locked until it ends.
+        </v-alert>
+
+        <v-row>
+            <v-col v-for="lane in lanes" :key="lane.id" class="col-12 col-lg-4">
+                <div class="cxm-lane">
+                    <div class="cxm-lane-head">
+                        <span class="cxm-lane-step">{{ lane.step }}</span>
+                        <div>
+                            <div class="cxm-lane-title">{{ lane.title }}</div>
+                            <div class="cxm-lane-sub">{{ lane.subtitle }}</div>
+                        </div>
                     </div>
-                    <div class="cxm-grid">
-                        <template v-for="item in section.items">
-                            <!-- one card for a numbered family (T0..Tn, AXT0..AXTn): a chip per installed hotend -->
-                            <div
-                                v-if="item.family"
-                                :key="section.id + item.key"
-                                :class="['cxm-card', 'cxm-family', { 'cxm-card-locked': isLocked(item.members[0].macro.name) }]">
-                                <div class="cxm-card-head">
-                                    <v-icon small class="cxm-card-icon">{{ groupOf(item.members[0].macro.name).icon }}</v-icon>
-                                    <span class="cxm-card-title">{{ item.family.title }}</span>
-                                </div>
-                                <div class="cxm-card-desc">{{ item.family.description }}</div>
-                                <div class="cxm-chips">
-                                    <button
-                                        v-for="member in item.members"
-                                        :key="member.macro.name"
-                                        type="button"
-                                        class="cxm-chip"
-                                        :title="member.macro.name.toUpperCase()"
-                                        :style="chipStyle(member.n)"
-                                        @click="openMacro(member.macro)">
-                                        T{{ member.n }}
-                                    </button>
-                                </div>
+                    <div v-if="lane.rows.length === 0" class="cxm-empty">
+                        {{ search ? 'No match' : 'Nothing here' }}
+                    </div>
+                    <div
+                        v-for="row in lane.rows"
+                        :key="row.key"
+                        :class="['cxm-row', { 'cxm-row-locked': row.locked }]"
+                        :title="row.hint">
+                        <v-btn
+                            v-if="row.macro"
+                            icon
+                            x-small
+                            class="cxm-star"
+                            :class="{ 'cxm-star-on': isFavourite(row.macro.name) }"
+                            @click="toggleFavourite(row.macro.name)">
+                            <v-icon small :color="isFavourite(row.macro.name) ? 'primary' : ''">
+                                {{ isFavourite(row.macro.name) ? mdiStar : mdiStarOutline }}
+                            </v-icon>
+                        </v-btn>
+                        <span v-else class="cxm-star-space" />
+                        <div class="cxm-row-text">
+                            <div class="cxm-row-title">
+                                {{ row.title }}
+                                <span v-for="param in row.params" :key="param" class="cxm-tag">{{ param }}</span>
                             </div>
-                            <div
-                                v-else
-                                :key="section.id + item.key"
-                                :class="['cxm-card', { 'cxm-card-locked': isLocked(item.macro.name) }]"
-                                :title="item.macro.name.toUpperCase()"
-                                @click="openMacro(item.macro)">
-                                <div class="cxm-card-head">
-                                    <v-icon small class="cxm-card-icon">{{ groupOf(item.macro.name).icon }}</v-icon>
-                                    <span class="cxm-card-title">{{ macroTitle(item.macro.name) }}</span>
-                                    <span v-for="param in paramNames(item.macro)" :key="param" class="cxm-tag">
-                                        {{ param.toUpperCase() }}
-                                    </span>
-                                    <v-btn icon x-small class="ml-auto cxm-star" @click.stop="toggleFavourite(item.macro.name)">
-                                        <v-icon small :color="isFavourite(item.macro.name) ? 'primary' : ''">
-                                            {{ isFavourite(item.macro.name) ? mdiStar : mdiStarOutline }}
-                                        </v-icon>
-                                    </v-btn>
-                                </div>
-                                <div class="cxm-card-desc">{{ description(item.macro) }}</div>
-                            </div>
-                        </template>
+                            <div class="cxm-row-desc">{{ row.description }}</div>
+                        </div>
+                        <div class="cxm-row-buttons">
+                            <button
+                                v-for="button in row.buttons"
+                                :key="button.label"
+                                type="button"
+                                :class="['cxm-run', { 'cxm-run-small': row.buttons.length > 1 }]"
+                                :disabled="row.locked"
+                                @click="button.direct ? sendNow(button.macro) : openMacro(button.macro)">
+                                {{ button.label }}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </v-col>
@@ -114,17 +122,14 @@
         <v-dialog v-model="dialog" max-width="520">
             <v-card v-if="selected" class="panel">
                 <v-toolbar flat dense class="panel-toolbar">
-                    <v-toolbar-title class="d-flex align-center">
-                        <v-icon left>{{ groupOf(selected.name).icon }}</v-icon>
-                        <span class="subheading">{{ macroTitle(selected.name) }}</span>
-                    </v-toolbar-title>
+                    <v-toolbar-title class="subheading">{{ macroTitle(selected.name) }}</v-toolbar-title>
                     <v-spacer />
                     <v-btn icon tile @click="dialog = false">
                         <v-icon>{{ mdiClose }}</v-icon>
                     </v-btn>
                 </v-toolbar>
                 <v-card-text class="pt-4">
-                    <p v-if="selected.description" class="mb-4">{{ selected.description }}</p>
+                    <p v-if="description(selected)" class="mb-4">{{ description(selected) }}</p>
                     <v-alert v-if="isLocked(selected.name)" dense text type="warning">
                         Locked while a print is running.
                     </v-alert>
@@ -164,128 +169,87 @@
 </template>
 
 <script lang="ts">
-// CXM Macros page: every visible Klipper macro, grouped automatically from its name.
-// Numbered families (T0..Tn, AXT0..AXTn) fold into one card with a chip per installed
-// hotend; macros for hotends that aren't installed are hidden. Favourites and recent
-// are kept in this browser, search with Cmd/Ctrl+K, and every macro opens a confirm
-// dialog showing the exact command. Groups that move the machine lock during a print.
+// CXM Macros page.
+// Top: a tile per installed hotend (pick up, camera align, go to camera) plus "empty carriage".
+// Below: three lanes in the order you use them (set up, print, fix) as compact rows with a
+// Run button; macros that aren't CXM go in a fourth "other" lane. Every Run opens a confirm
+// dialog with the exact command, except the small Z nudges, which send at once.
+// Macros for hotends that aren't installed are hidden. Starred macros float to the top
+// of their lane (kept in this browser).
 import Component from 'vue-class-component'
 import { Mixins } from 'vue-property-decorator'
-import CxmMixin, { CXM_DEFAULT_COLOR } from '@/components/mixins/cxm'
+import CxmMixin from '@/components/mixins/cxm'
 import { PrinterStateMacro } from '@/store/printer/types'
-import {
-    mdiAutoFix,
-    mdiClose,
-    mdiCodeBraces,
-    mdiFlaskOutline,
-    mdiHistory,
-    mdiLifebuoy,
-    mdiMagnify,
-    mdiPlay,
-    mdiPrinter3d,
-    mdiPrinter3dNozzle,
-    mdiStar,
-    mdiStarOutline,
-    mdiTools,
-    mdiViewGridOutline,
-} from '@mdi/js'
+import { mdiClose, mdiMagnify, mdiPlay, mdiStar, mdiStarOutline } from '@mdi/js'
 
-interface MacroGroup {
-    id: string
-    title: string
-    icon: string
-    locked: boolean // locked while printing
-    first: string[] // shown first, in this order; the rest alphabetical
-    match: (name: string) => boolean
+interface RowButton {
+    label: string
+    macro: PrinterStateMacro
+    direct: boolean // send without the confirm dialog
 }
 
-interface MacroFamily {
-    id: string
+interface Row {
+    key: string
     title: string
     description: string
-    pattern: RegExp
+    hint: string
+    params: string[]
+    macro: PrinterStateMacro | null // null for a combined row
+    buttons: RowButton[]
+    locked: boolean
 }
 
-interface FamilyMember {
-    n: number
-    macro: PrinterStateMacro
-}
-
-interface CardItem {
-    key: string
-    macro: PrinterStateMacro
-    family: MacroFamily | null
-    members: FamilyMember[]
-}
-
-interface Section {
+interface Lane {
     id: string
+    step: string
     title: string
-    icon: string
-    items: CardItem[]
+    subtitle: string
+    rows: Row[]
 }
 
-const GROUPS: MacroGroup[] = [
+interface TileAction {
+    label: string
+    hint: string
+    macro: PrinterStateMacro
+    preset: Record<string, string>
+}
+
+const LANES = [
     {
-        id: 'tools',
-        title: 'Tool changes',
-        icon: mdiPrinter3dNozzle,
-        locked: true,
-        first: ['CXM_CHANGE', 'CXM_UNLOAD'],
-        match: (n) => /^T\d+$/.test(n) || ['CXM_UNLOAD', 'CXM_CHANGE'].includes(n),
+        id: 'setup',
+        step: '1',
+        title: 'Set up',
+        subtitle: 'Calibrate and test before you print',
+        first: ['CXM_AUTO_GLOBAL_Z', 'CXM_CAM_SAVE', 'CXM_CAM_VERIFY', 'CXM_DOCK_SAVE', 'CXM_DOCK_GOTO'],
     },
     {
         id: 'print',
-        title: 'Printing',
-        icon: mdiPrinter3d,
-        locked: false,
-        first: ['PRINT_START', 'PRINT_END', 'PAUSE', 'RESUME', 'CANCEL_PRINT', 'CXM_PRINT_CHECK', 'CXM_PRINT_FINISH'],
-        match: (n) =>
-            ['PRINT_START', 'PRINT_END', 'PAUSE', 'RESUME', 'CANCEL_PRINT'].includes(n) ||
-            /^CXM_(PRINT_|Z_PLUS|Z_MINUS|Z_TRIMS|DRY_RUN|NO_PAUSE)/.test(n),
+        step: '2',
+        title: 'Print',
+        subtitle: 'Start, nudge Z, pause and finish',
+        first: ['PRINT_START', '@ZNUDGE', 'PAUSE', 'RESUME', 'CANCEL_PRINT', 'PRINT_END'],
     },
     {
-        id: 'calibration',
-        title: 'Setup & calibration',
-        icon: mdiTools,
-        locked: true,
-        first: ['CXM_AUTO_GLOBAL_Z'],
-        match: (n) =>
-            /^AXT\d+$/.test(n) ||
-            /^CXM_(DOCK_|CAM_|Z_CALIBRATE|Z_VERIFY|AUTO_GLOBAL_Z|SAVE_Z_BIAS|SET_OFFSET|TOOL_ENABLE)/.test(n),
+        id: 'fix',
+        step: '3',
+        title: 'Fix',
+        subtitle: 'Check state and recover when something goes wrong',
+        first: ['CXM_STATUS', 'CXM_RESUME', 'CXM_SET_TOOL', 'CXM_CHANGE', 'CXM_SETTINGS', 'CXM_HELP'],
     },
-    {
-        id: 'tests',
-        title: 'Tests',
-        icon: mdiFlaskOutline,
-        locked: true,
-        first: ['CXM_TEST', 'CXM_TEST_STOP'],
-        match: (n) => n.startsWith('CXM_TEST'),
-    },
-    {
-        id: 'status',
-        title: 'Status & recovery',
-        icon: mdiLifebuoy,
-        locked: false,
-        first: ['CXM_STATUS', 'CXM_RESUME', 'CXM_SET_TOOL', 'CXM_SETTINGS', 'CXM_HELP'],
-        match: (n) => /^CXM_(STATUS|HELP|SET_TOOL|RESUME|SETTINGS)$/.test(n),
-    },
-    { id: 'cxm', title: 'Other CXM', icon: mdiAutoFix, locked: true, first: [], match: (n) => n.startsWith('CXM') },
-    { id: 'other', title: 'Other macros', icon: mdiCodeBraces, locked: false, first: [], match: () => true },
+    { id: 'other', step: '•', title: 'Other', subtitle: 'Your own macros', first: [] as string[] },
 ]
 
-const FAMILIES: MacroFamily[] = [
-    { id: 'pick', title: 'Pick up hotend', description: 'Tap a hotend to load it', pattern: /^T(\d+)$/ },
-    {
-        id: 'axt',
-        title: 'Camera align',
-        description: 'Save the hotend now over the camera, then bring the one you tap',
-        pattern: /^AXT(\d+)$/,
-    },
+// shown on the hotend tiles, not as rows
+const TILE_MACROS = /^(T\d+|AXT\d+|CXM_CAM_GOTO|CXM_UNLOAD)$/
+
+const Z_NUDGE: [string, string][] = [
+    ['CXM_Z_MINUS_050', '−.05'],
+    ['CXM_Z_MINUS_025', '−.025'],
+    ['CXM_Z_PLUS_025', '+.025'],
+    ['CXM_Z_PLUS_050', '+.05'],
 ]
 
 const FAV_KEY = 'cxm.macroFavourites'
-const RECENT_KEY = 'cxm.macroRecent'
 
 function loadList(key: string): string[] {
     try {
@@ -300,17 +264,20 @@ function saveList(key: string, list: string[]) {
     try {
         window.localStorage.setItem(key, JSON.stringify(list))
     } catch (e) {
-        // private mode or storage full: favourites just won't persist
+        // private mode or storage full: stars just won't persist
     }
 }
 
-function familyOf(name: string): { family: MacroFamily; n: number } | null {
-    for (const family of FAMILIES) {
-        const match = name.toUpperCase().match(family.pattern)
-        if (match) return { family, n: parseInt(match[1]) }
-    }
+function laneOf(name: string): string {
+    if (/^CXM_(STATUS|HELP|SET_TOOL|RESUME|SETTINGS|CHANGE)$/.test(name)) return 'fix'
+    if (
+        ['PRINT_START', 'PRINT_END', 'PAUSE', 'RESUME', 'CANCEL_PRINT'].includes(name) ||
+        /^CXM_(PRINT_|Z_PLUS|Z_MINUS|Z_TRIMS|DRY_RUN|NO_PAUSE)/.test(name)
+    )
+        return 'print'
+    if (name.startsWith('CXM')) return 'setup'
 
-    return null
+    return 'other'
 }
 
 @Component
@@ -322,9 +289,7 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     mdiStarOutline = mdiStarOutline
 
     search = ''
-    activeGroup = 'all'
     favourites: string[] = loadList(FAV_KEY)
-    recent: string[] = loadList(RECENT_KEY)
     dialog = false
     selected: PrinterStateMacro | null = null
     paramValues: Record<string, string> = {}
@@ -337,139 +302,128 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         return ['printing', 'paused'].includes(this.printer_state)
     }
 
-    get installedTools(): number[] {
-        return this.cxmTools.map((tool) => tool.n)
+    get macros(): PrinterStateMacro[] {
+        return this.$store.getters['printer/getMacros'] ?? []
     }
 
-    // every macro except the numbered ones for hotends that aren't installed
-    get visibleMacros(): PrinterStateMacro[] {
-        const macros: PrinterStateMacro[] = this.$store.getters['printer/getMacros'] ?? []
-        if (this.installedTools.length === 0) return macros
-
-        return macros.filter((macro) => {
-            const member = familyOf(macro.name)
-
-            return member === null || this.installedTools.includes(member.n)
-        })
+    macro(name: string): PrinterStateMacro | null {
+        return this.macros.find((m) => m.name.toUpperCase() === name) ?? null
     }
 
-    groupOf(name: string): MacroGroup {
-        const upper = name.toUpperCase()
-
-        return GROUPS.find((group) => group.match(upper)) ?? GROUPS[GROUPS.length - 1]
-    }
-
+    // hotend changes and set-up macros move the machine: locked during a print
     isLocked(name: string): boolean {
-        return this.printing && this.groupOf(name).locked
-    }
-
-    get activeGroupLocked(): boolean {
-        return GROUPS.some((group) => group.id === this.activeGroup && group.locked)
-    }
-
-    get searchedMacros(): PrinterStateMacro[] {
-        const query = (this.search ?? '').trim().toLowerCase()
-        if (!query) return this.visibleMacros
-
-        return this.visibleMacros.filter((macro) => {
-            const family = familyOf(macro.name)?.family
-            const text = [macro.name, macro.description ?? '', this.macroTitle(macro.name), family?.title ?? '']
-
-            return text.join(' ').toLowerCase().includes(query)
-        })
-    }
-
-    sortKey(group: MacroGroup, name: string): string {
+        if (!this.printing) return false
         const upper = name.toUpperCase()
-        if (familyOf(upper)) return '0'
-        const index = group.first.indexOf(upper)
 
-        return index === -1 ? '2' + this.macroTitle(upper) : '1' + String(index).padStart(2, '0')
+        return TILE_MACROS.test(upper) || upper === 'CXM_CHANGE' || laneOf(upper) === 'setup'
     }
 
-    // fold numbered families into one card; other macros stay one card each
-    cards(macros: PrinterStateMacro[], foldFamilies = true): CardItem[] {
-        const items: CardItem[] = []
-        const byFamily: Record<string, CardItem> = {}
+    get unloadMacro(): PrinterStateMacro | null {
+        return this.macro('CXM_UNLOAD')
+    }
 
-        macros.forEach((macro) => {
-            const member = foldFamilies ? familyOf(macro.name) : null
-            if (member === null) {
-                items.push({ key: macro.name, macro, family: null, members: [] })
-                return
+    get tiles() {
+        const camGoto = this.macro('CXM_CAM_GOTO')
+
+        return this.cxmTools.map((tool) => {
+            const actions: TileAction[] = []
+            const pick = this.macro('T' + tool.n)
+            const align = this.macro('AXT' + tool.n)
+            if (pick) actions.push({ label: 'Pick', hint: 'Pick up T' + tool.n, macro: pick, preset: {} })
+            if (align)
+                actions.push({
+                    label: 'Align',
+                    hint: 'Save the hotend now over the camera, then bring T' + tool.n,
+                    macro: align,
+                    preset: {},
+                })
+            if (camGoto)
+                actions.push({
+                    label: 'Cam',
+                    hint: 'Bring T' + tool.n + ' to the camera',
+                    macro: camGoto,
+                    preset: { TOOL: String(tool.n) },
+                })
+            const mounted = tool.n === this.cxmTool
+            let state = tool.enabled ? 'in dock' : 'disabled'
+            if (mounted) state = 'on carriage'
+
+            return {
+                n: tool.n,
+                color: tool.color,
+                temp: tool.temp === null ? '' : Math.round(tool.temp) + '°',
+                mounted,
+                enabled: tool.enabled,
+                state,
+                actions,
             }
-            let item = byFamily[member.family.id]
-            if (!item) {
-                item = { key: '@' + member.family.id, macro, family: member.family, members: [] }
-                byFamily[member.family.id] = item
-                items.push(item)
+        })
+    }
+
+    makeRow(macro: PrinterStateMacro): Row {
+        return {
+            key: macro.name,
+            title: this.macroTitle(macro.name),
+            description: this.description(macro),
+            hint: macro.name.toUpperCase() + (this.description(macro) ? ' · ' + this.description(macro) : ''),
+            params: this.paramNames(macro).map((p) => p.toUpperCase()),
+            macro,
+            buttons: [{ label: 'Run', macro, direct: false }],
+            locked: this.isLocked(macro.name),
+        }
+    }
+
+    get zNudgeRow(): Row | null {
+        const buttons: RowButton[] = []
+        Z_NUDGE.forEach(([name, label]) => {
+            const macro = this.macro(name)
+            if (macro) buttons.push({ label, macro, direct: true })
+        })
+        if (buttons.length === 0) return null
+
+        return {
+            key: '@ZNUDGE',
+            title: 'Z nudge',
+            description: 'Mounted hotend, this print only (sends at once)',
+            hint: 'CXM_Z_MINUS_050 / 025 · CXM_Z_PLUS_025 / 050',
+            params: [],
+            macro: null,
+            buttons,
+            locked: false,
+        }
+    }
+
+    matches(row: Row): boolean {
+        const query = (this.search ?? '').trim().toLowerCase()
+        if (!query) return true
+
+        return [row.title, row.description, row.hint].join(' ').toLowerCase().includes(query)
+    }
+
+    get lanes(): Lane[] {
+        const zNudgeNames = Z_NUDGE.map(([name]) => name)
+        const rows: Record<string, Row[]> = { setup: [], print: [], fix: [], other: [] }
+
+        this.macros.forEach((macro) => {
+            const upper = macro.name.toUpperCase()
+            if (TILE_MACROS.test(upper) || zNudgeNames.includes(upper)) return
+            rows[laneOf(upper)].push(this.makeRow(macro))
+        })
+        if (this.zNudgeRow) rows.print.push(this.zNudgeRow)
+
+        return LANES.map((lane) => {
+            const order = (row: Row): string => {
+                const pinned = row.macro && this.isFavourite(row.macro.name) ? '0' : '1'
+                const index = lane.first.indexOf(row.key.toUpperCase())
+                const test = row.key.toUpperCase().startsWith('CXM_TEST') ? '9' : '5'
+                const rest = index === -1 ? test + row.title : '1' + String(index).padStart(2, '0')
+
+                return pinned + rest
             }
-            item.members.push({ n: member.n, macro })
-        })
-        items.forEach((item) => item.members.sort((a, b) => a.n - b.n))
+            const laneRows = rows[lane.id].filter((row) => this.matches(row)).sort((a, b) => order(a).localeCompare(order(b)))
 
-        return items
-    }
-
-    groupCards(group: MacroGroup, macros: PrinterStateMacro[]): CardItem[] {
-        const inGroup = macros
-            .filter((macro) => this.groupOf(macro.name).id === group.id)
-            .sort((a, b) => this.sortKey(group, a.name).localeCompare(this.sortKey(group, b.name)))
-
-        return this.cards(inGroup)
-    }
-
-    get favouriteMacros(): PrinterStateMacro[] {
-        return this.favourites
-            .map((name) => this.visibleMacros.find((m) => m.name.toUpperCase() === name))
-            .filter((m): m is PrinterStateMacro => m !== undefined)
-    }
-
-    get recentMacros(): PrinterStateMacro[] {
-        return this.recent
-            .map((name) => this.visibleMacros.find((m) => m.name.toUpperCase() === name))
-            .filter((m): m is PrinterStateMacro => m !== undefined)
-    }
-
-    get groupList() {
-        const list = [
-            { id: 'all', title: 'All macros', icon: mdiViewGridOutline, count: this.cards(this.visibleMacros).length },
-            { id: 'favourites', title: 'Favourites', icon: mdiStar, count: this.favouriteMacros.length },
-            { id: 'recent', title: 'Recent', icon: mdiHistory, count: this.recentMacros.length },
-        ]
-        GROUPS.forEach((group) => {
-            const count = this.groupCards(group, this.visibleMacros).length
-            if (count) list.push({ id: group.id, title: group.title, icon: group.icon, count })
-        })
-
-        return list
-    }
-
-    get sections(): Section[] {
-        const searched = this.searchedMacros
-        const keep = (list: PrinterStateMacro[]) => list.filter((m) => searched.includes(m))
-
-        if (this.activeGroup === 'favourites') {
-            const items = this.cards(keep(this.favouriteMacros), false)
-            return items.length ? [{ id: 'favourites', title: '', icon: mdiStar, items }] : []
-        }
-        if (this.activeGroup === 'recent') {
-            const items = this.cards(keep(this.recentMacros), false)
-            return items.length ? [{ id: 'recent', title: '', icon: mdiHistory, items }] : []
-        }
-
-        const sections: Section[] = []
-        const all = this.activeGroup === 'all'
-        if (all && !this.search) {
-            const favourites = this.cards(this.favouriteMacros, false)
-            if (favourites.length) sections.push({ id: 'favourites', title: 'Favourites', icon: mdiStar, items: favourites })
-        }
-        GROUPS.filter((group) => all || group.id === this.activeGroup).forEach((group) => {
-            const items = this.groupCards(group, searched)
-            if (items.length) sections.push({ id: group.id, title: all ? group.title : '', icon: group.icon, items })
-        })
-
-        return sections
+            return { id: lane.id, step: lane.step, title: lane.title, subtitle: lane.subtitle, rows: laneRows }
+        }).filter((lane) => lane.id !== 'other' || lane.rows.length > 0)
     }
 
     macroTitle(name: string): string {
@@ -477,12 +431,12 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         if (/^T\d+$/.test(upper)) return 'Pick up ' + upper
         if (/^AXT\d+$/.test(upper)) return 'Camera align → T' + upper.slice(3)
 
-        const words = upper
+        const title = upper
             .replace(/^CXM_/, '')
             .split('_')
             .filter((word) => word !== '')
             .map((word) => word.toLowerCase())
-        const title = words.join(' ')
+            .join(' ')
 
         return title.charAt(0).toUpperCase() + title.slice(1)
     }
@@ -501,13 +455,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         return macro.params?.[param]?.default ?? ''
     }
 
-    chipStyle(n: number): Record<string, string> {
-        const tool = this.cxmTools.find((t) => t.n === n)
-        const color = tool?.color ?? CXM_DEFAULT_COLOR
-
-        return { background: color, color: this.cxmTextOn(color) }
-    }
-
     get command(): string {
         if (!this.selected) return ''
 
@@ -518,10 +465,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         })
 
         return parts.join(' ')
-    }
-
-    selectGroup(id: string) {
-        this.activeGroup = id
     }
 
     isFavourite(name: string): boolean {
@@ -536,18 +479,26 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         saveList(FAV_KEY, this.favourites)
     }
 
-    openMacro(macro: PrinterStateMacro) {
+    openMacro(macro: PrinterStateMacro, preset: Record<string, string> = {}) {
+        // params are keyed as the macro declares them (usually upper case)
+        const values: Record<string, string> = {}
+        this.paramNames(macro).forEach((param) => {
+            const value = preset[param.toUpperCase()]
+            if (value !== undefined) values[param] = value
+        })
         this.selected = macro
-        this.paramValues = {}
+        this.paramValues = values
         this.dialog = true
+    }
+
+    sendNow(macro: PrinterStateMacro) {
+        if (this.isLocked(macro.name)) return
+
+        this.$store.dispatch('printer/sendGcode', macro.name.toUpperCase())
     }
 
     run() {
         if (!this.selected || this.isLocked(this.selected.name)) return
-
-        const upper = this.selected.name.toUpperCase()
-        this.recent = [upper, ...this.recent.filter((name) => name !== upper)].slice(0, 10)
-        saveList(RECENT_KEY, this.recent)
 
         this.$store.dispatch('printer/sendGcode', this.command)
         this.dialog = false
@@ -580,7 +531,7 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
 }
 
 .cxm-macros-search {
-    max-width: 380px;
+    max-width: 340px;
 }
 
 .cxm-kbd {
@@ -592,170 +543,238 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     margin-top: 2px;
 }
 
-.cxm-groups .v-list-item {
-    border-radius: 9px;
-}
-
-.cxm-group-active {
-    background: rgba(255, 138, 31, 0.15);
-    box-shadow: inset 3px 0 0 #ff8a1f;
-}
-
-.cxm-group-active .v-list-item__title,
-.cxm-group-active .v-icon {
-    color: #ff8a1f !important;
-}
-
-.cxm-count {
-    font-size: 11px;
-    font-weight: 700;
-    opacity: 0.6;
-}
-
-.cxm-section {
-    display: flex;
-    align-items: center;
-    margin: 0 0 10px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #8a94a8;
-}
-
-.cxm-section .v-icon {
-    color: #ff8a1f !important;
-}
-
-.cxm-section::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    margin-left: 12px;
-    background: #263045;
-}
-
-.cxm-section-count {
-    margin-left: 8px;
-    opacity: 0.6;
-}
-
-.cxm-grid {
+/* hotend tiles */
+.cxm-tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    grid-auto-rows: 80px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     grid-gap: 10px;
 }
 
-.cxm-card {
+.cxm-tile {
     padding: 10px 12px;
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid #263045;
     background: #161d2a;
-    cursor: pointer;
-    overflow: hidden;
+}
+
+.cxm-tile-on {
+    border-color: #ff8a1f;
+    box-shadow: 0 0 18px -8px rgba(255, 138, 31, 0.9);
+}
+
+.cxm-tile-off {
+    opacity: 0.5;
+}
+
+.cxm-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    margin-right: 8px;
+    flex-shrink: 0;
+}
+
+.cxm-dot-empty {
+    background: transparent;
+    border-style: dashed;
+}
+
+.cxm-tile-name {
+    font-family: 'Rajdhani', 'Avenir Next Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.cxm-tile-temp {
+    margin-left: auto;
+    font-family: 'Rajdhani', 'Avenir Next Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #8a94a8;
+}
+
+.cxm-tile-state {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #8a94a8;
+    margin: 2px 0 8px;
+}
+
+.cxm-tile-on .cxm-tile-state {
+    color: #ff8a1f;
+}
+
+.cxm-tile-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.cxm-tile-actions button,
+.cxm-run {
+    flex: 1;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 138, 31, 0.45);
+    color: #ffb35c;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     transition:
-        border-color 0.2s,
-        box-shadow 0.2s;
+        background 0.15s,
+        color 0.15s;
 }
 
-.cxm-card:hover {
-    border-color: rgba(255, 138, 31, 0.6);
-    box-shadow: 0 0 16px -8px rgba(255, 138, 31, 0.8);
+.cxm-tile-actions button:hover:not(:disabled),
+.cxm-run:hover:not(:disabled) {
+    background: #ff8a1f;
+    color: #1a0e00;
 }
 
-.cxm-family {
-    grid-column: span 2;
-    grid-row: span 2;
-    cursor: default;
+.cxm-tile-actions button:disabled,
+.cxm-run:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
 }
 
-@media (max-width: 600px) {
-    .cxm-family {
-        grid-column: auto;
-    }
+/* lanes */
+.cxm-lane {
+    height: 100%;
+    border-radius: 12px;
+    border: 1px solid #263045;
+    background: #141a26;
+    overflow: hidden;
 }
 
-.cxm-card-locked {
-    opacity: 0.45;
-    pointer-events: none;
-}
-
-.cxm-card-head {
+.cxm-lane-head {
     display: flex;
     align-items: center;
-    min-width: 0;
+    padding: 12px 14px;
+    border-bottom: 1px solid #263045;
+    background: linear-gradient(90deg, rgba(255, 138, 31, 0.12), transparent 70%);
 }
 
-.cxm-card-icon {
-    color: #ff8a1f !important;
-    margin-right: 8px;
+.cxm-lane-step {
+    width: 28px;
+    height: 28px;
+    margin-right: 12px;
+    border-radius: 8px;
+    background: #ff8a1f;
+    color: #1a0e00;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-.cxm-card-title {
+.cxm-lane-title {
+    font-family: 'Rajdhani', 'Avenir Next Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
+    font-size: 18px;
     font-weight: 700;
-    letter-spacing: 0.3px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    line-height: 1.1;
+}
+
+.cxm-lane-sub {
+    font-size: 12px;
+    color: #8a94a8;
+}
+
+.cxm-empty {
+    padding: 14px;
+    font-size: 12px;
+    color: #5b6472;
+}
+
+.cxm-row {
+    display: flex;
+    align-items: center;
+    padding: 7px 12px 7px 6px;
+    border-bottom: 1px solid #1d2433;
+    min-height: 50px;
+}
+
+.cxm-row:last-child {
+    border-bottom: 0;
+}
+
+.cxm-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.cxm-row-locked .cxm-row-text {
+    opacity: 0.45;
+}
+
+.cxm-star {
+    flex-shrink: 0;
+    opacity: 0.3;
+}
+
+.cxm-row:hover .cxm-star,
+.cxm-star-on {
+    opacity: 1;
+}
+
+.cxm-star-space {
+    width: 20px;
+    flex-shrink: 0;
+}
+
+.cxm-row-text {
+    flex: 1;
+    min-width: 0;
+    margin: 0 10px 0 4px;
+}
+
+.cxm-row-title {
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cxm-row-desc {
+    font-size: 12px;
+    color: #8a94a8;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .cxm-tag {
-    flex-shrink: 0;
     margin-left: 6px;
     padding: 0 5px;
     font-family: Menlo, Consolas, monospace;
     font-size: 9px;
-    line-height: 15px;
+    font-weight: 400;
     color: #ffb35c;
     border: 1px solid rgba(255, 138, 31, 0.35);
     border-radius: 4px;
+    vertical-align: 2px;
 }
 
-.cxm-star {
-    flex-shrink: 0;
-    opacity: 0.5;
-}
-
-.cxm-card:hover .cxm-star {
-    opacity: 1;
-}
-
-.cxm-card-desc {
-    margin-top: 5px;
-    font-size: 12px;
-    line-height: 1.35;
-    color: #8a94a8;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.cxm-chips {
+.cxm-row-buttons {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
+    gap: 4px;
+    flex-shrink: 0;
 }
 
-.cxm-chip {
-    min-width: 46px;
-    height: 40px;
-    padding: 0 8px;
-    border-radius: 9px;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    font-family: 'Rajdhani', 'Avenir Next Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
-    font-size: 17px;
-    font-weight: 700;
-    transition:
-        transform 0.15s,
-        box-shadow 0.15s;
+.cxm-run {
+    flex: none;
+    min-width: 54px;
 }
 
-.cxm-chip:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 14px -4px rgba(255, 138, 31, 0.9);
+.cxm-run-small {
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 11px;
 }
 
 .cxm-preview {
