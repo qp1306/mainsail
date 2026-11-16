@@ -9,6 +9,7 @@ import Machine from '../pages/Machine.vue'
 import { AsyncComponent, Component } from 'vue'
 
 import {
+    mdiGauge,
     mdiMonitorDashboard,
     mdiWebcam,
     mdiConsoleLine,
@@ -21,6 +22,16 @@ import {
 } from '@mdi/js'
 
 const routes: AppRoute[] = [
+    {
+        name: 'cockpit',
+        title: 'Cockpit',
+        path: '/cockpit',
+        icon: mdiGauge,
+        component: () => import('../pages/Cockpit.vue'),
+        alwaysShow: false,
+        showInNavi: true,
+        position: 5,
+    },
     {
         name: 'dashboard',
         title: 'Dashboard',

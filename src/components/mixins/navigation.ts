@@ -53,7 +53,8 @@ export default class NavigationMixin extends Mixins(BaseMixin) {
 
                 points.push({
                     type: 'route',
-                    title: this.$t(`Router.${element.title}`),
+                    // CXM: pages without a translation (e.g. Cockpit) show their plain title
+                    title: this.$te(`Router.${element.title}`) ? this.$t(`Router.${element.title}`) : element.title,
                     orgTitle: element.title,
                     icon: element.icon,
                     to: element.path,
