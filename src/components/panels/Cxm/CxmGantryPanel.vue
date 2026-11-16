@@ -40,8 +40,19 @@
                     <text y="38" text-anchor="middle" class="cxm-dock-sub">{{ dock.sub }}</text>
                 </g>
 
-                <!-- carriage, live -->
-                <g class="cxm-carriage" :style="{ transform: 'translate(' + carriage.x + 'px,' + carriage.y + 'px)' }">
+                <!-- carriage, live (only once X/Y are homed: before that the position means nothing) -->
+                <text
+                    v-if="!homedXY"
+                    :x="width / 2"
+                    :y="(safeY !== null ? safeY : height) / 2"
+                    text-anchor="middle"
+                    class="cxm-unhomed">
+                    NOT HOMED · carriage position unknown
+                </text>
+                <g
+                    v-else
+                    class="cxm-carriage"
+                    :style="{ transform: 'translate(' + carriage.x + 'px,' + carriage.y + 'px)' }">
                     <circle v-if="busy" r="24" fill="none" stroke="#ff8a1f" stroke-width="2" class="cxm-halo" />
                     <rect x="-20" y="-17" width="40" height="34" rx="7" class="cxm-car-body" />
                     <circle v-if="carriageTool" r="12" :fill="carriageTool.color" class="cxm-ball" />
@@ -105,6 +116,12 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
         return this.cxmTransferY === null ? null : this.toSvg(0, this.cxmTransferY)[1]
     }
 
+    get homedXY(): boolean {
+        const homed: string = this.$store.state.printer.toolhead?.homed_axes ?? ''
+
+        return homed.includes('x') && homed.includes('y')
+    }
+
     get busy(): boolean {
         return parseInt(this.cxmState.busy ?? 0) === 1
     }
@@ -147,7 +164,15 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
 .cxm-map {
     width: 100%;
     height: auto;
+    max-height: 480px;
     display: block;
+}
+
+.cxm-unhomed {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    fill: #ffb020;
 }
 
 .cxm-pos {
