@@ -44,7 +44,9 @@
                     <tr
                         v-for="tool in cxmTools"
                         :key="tool.n"
-                        :class="{ 'cxm-active': tool.n === cxmTool, 'cxm-off': !tool.enabled }">
+                        :class="{ 'cxm-active': tool.n === cxmTool, 'cxm-off': !tool.enabled, 'cxm-pick': canPick(tool) }"
+                        :title="canPick(tool) ? 'Click to change to T' + tool.n : ''"
+                        @click="pick(tool)">
                         <td>
                             <div class="d-flex align-center">
                                 <span class="cxm-dot mr-2" :style="{ background: tool.color }" />
@@ -89,7 +91,6 @@ import { mdiPrinter3dNozzle } from '@mdi/js'
 export default class CxmToolsPanel extends Mixins(CxmMixin) {
     mdiPrinter3dNozzle = mdiPrinter3dNozzle
 
-    // not "mounted": that name is reserved for the Vue lifecycle hook
     get mountedTool(): CxmTool | null {
         return this.cxmTools.find((tool) => tool.n === this.cxmTool) ?? null
     }
@@ -132,6 +133,26 @@ export default class CxmToolsPanel extends Mixins(CxmMixin) {
             return 'CXM and the tool sensor disagree. Run CXM_STATUS.'
 
         return ''
+    }
+
+    get printing(): boolean {
+        return ['printing', 'paused'].includes(this.printer_state)
+    }
+
+    // the row can be clicked to change to that hotend: it has a Tn macro, it isn't the one
+    // already on the carriage, and no print is running
+    canPick(tool: CxmTool): boolean {
+        if (this.printing || tool.n === this.cxmTool) return false
+        const macros = this.$store.getters['printer/getMacros'] ?? []
+
+        return macros.some((macro: { name: string }) => macro.name.toUpperCase() === 'T' + tool.n)
+    }
+
+    // clicking a row changes to that hotend straight away, like the tiles on the Macros page
+    pick(tool: CxmTool) {
+        if (!this.canPick(tool)) return
+
+        this.$store.dispatch('printer/sendGcode', 'T' + tool.n)
     }
 
     ballStyle(color: string): Record<string, string> {
@@ -199,6 +220,14 @@ export default class CxmToolsPanel extends Mixins(CxmMixin) {
 
 .cxm-table tr.cxm-active td {
     background: rgba(255, 138, 31, 0.08);
+}
+
+.cxm-table tr.cxm-pick {
+    cursor: pointer;
+}
+
+.cxm-table tr.cxm-pick:hover td {
+    background: rgba(255, 138, 31, 0.12) !important;
 }
 
 .cxm-table tr.cxm-off td {
