@@ -128,10 +128,6 @@
                 </div>
             </v-col>
             <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
-                <panel :icon="mdiWebcam" title="Nozzle camera" card-class="cxm-rec-cam" :collapsible="false">
-                    <webcam-wrapper v-if="nozzleCam" :webcam="nozzleCam" page="cxm-recovery" />
-                    <v-card-text v-else class="text--disabled">No camera set up yet.</v-card-text>
-                </panel>
                 <miniconsole-panel />
             </v-col>
         </v-row>
@@ -144,10 +140,7 @@
 import Component from 'vue-class-component'
 import { Mixins, Watch } from 'vue-property-decorator'
 import CxmMixin from '@/components/mixins/cxm'
-import Panel from '@/components/ui/Panel.vue'
-import WebcamWrapper from '@/components/webcams/WebcamWrapper.vue'
 import MiniconsolePanel from '@/components/panels/MiniconsolePanel.vue'
-import { GuiWebcamStateWebcam } from '@/store/gui/webcams/types'
 import {
     canRehome,
     canResume,
@@ -166,7 +159,7 @@ import {
     stepList,
 } from '@/components/cxm/recovery'
 import { cxmRecovery } from '@/components/cxm/recoveryStore'
-import { mdiAlertOutline, mdiWebcam } from '@mdi/js'
+import { mdiAlertOutline } from '@mdi/js'
 
 const STEP_TITLES: Record<StepId, string> = {
     what: 'What happened',
@@ -180,11 +173,10 @@ const STEP_TITLES: Record<StepId, string> = {
 const MESSAGE_LOOKBACK_MS = 120000
 
 @Component({
-    components: { Panel, WebcamWrapper, MiniconsolePanel },
+    components: { MiniconsolePanel },
 })
 export default class CxmRecovery extends Mixins(CxmMixin) {
     mdiAlertOutline = mdiAlertOutline
-    mdiWebcam = mdiWebcam
     STEP_TITLES = STEP_TITLES
 
     viewStep: StepId | null = null
@@ -287,12 +279,6 @@ export default class CxmRecovery extends Mixins(CxmMixin) {
         const heat = temp ? ', reheats it to ' + Math.round(temp) + ' °C' : ', reheats'
 
         return fetch + heat + ', goes back to the print and carries on.'
-    }
-
-    get nozzleCam(): GuiWebcamStateWebcam | null {
-        const webcams: GuiWebcamStateWebcam[] = this.$store.getters['gui/webcams/getWebcams'] ?? []
-
-        return webcams.find((cam) => /nozzle/i.test(cam.name ?? '')) ?? webcams[0] ?? null
     }
 
     colorOf(n: number): string {
