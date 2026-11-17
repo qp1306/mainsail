@@ -133,11 +133,44 @@
             </g>
         </template>
 
-        <!-- Klipper saves and restarts -->
+        <!-- Klipper writes the results into printer.cfg, then restarts -->
         <template v-else>
             <rect x="8" y="8" width="344" height="184" rx="8" class="w-area" />
-            <text x="180" y="92" text-anchor="middle" class="w-big">SAVE_CONFIG</text>
-            <text x="180" y="118" text-anchor="middle" class="w-hint">results go into printer.cfg · Klipper restarts</text>
+            <g transform="translate(70,36)">
+                <path d="M0,0 H74 L96,22 V128 H0 Z" class="w-doc" />
+                <path d="M74,0 V22 H96" class="w-doc" />
+                <rect
+                    v-for="(line, index) in docLines"
+                    :key="index"
+                    x="14"
+                    :y="40 + index * 18"
+                    height="6"
+                    rx="3"
+                    class="w-doc-line">
+                    <animate
+                        attributeName="width"
+                        :values="'0;0;' + line + ';' + line"
+                        :keyTimes="'0;' + index * 0.15 + ';' + (index * 0.15 + 0.15) + ';1'"
+                        dur="3s"
+                        repeatCount="indefinite" />
+                </rect>
+                <text x="48" y="146" text-anchor="middle" class="w-lbl">printer.cfg</text>
+            </g>
+            <text x="200" y="104" text-anchor="middle" class="w-arrow">▶</text>
+            <g transform="translate(270,100)">
+                <g>
+                    <path d="M0,-30 A30,30 0 1,1 -26,-15" class="w-restart" />
+                    <polygon points="-34,-22 -18,-20 -28,-6" class="w-restart-head" />
+                    <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        values="0;0;360"
+                        keyTimes="0;0.6;1"
+                        dur="3s"
+                        repeatCount="indefinite" />
+                </g>
+                <text y="52" text-anchor="middle" class="w-lbl">RESTART</text>
+            </g>
         </template>
     </svg>
 </template>
@@ -238,6 +271,9 @@ export default class CxmWizardGraphic extends Vue {
         }
     }
 
+    // line lengths in the printer.cfg picture
+    docLines = [60, 44, 66, 38]
+
     get jogValues(): string {
         const dx = this.dockX(this.scene.tool)
 
@@ -270,11 +306,25 @@ export default class CxmWizardGraphic extends Vue {
     fill: #8a94a8;
 }
 
-.w-big {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 2px;
+.w-doc {
+    fill: #1d2536;
+    stroke: #3a4763;
+    stroke-width: 1.5;
+}
+
+.w-doc-line {
     fill: #ffb35c;
+}
+
+.w-restart {
+    fill: none;
+    stroke: #3ddc84;
+    stroke-width: 4;
+    stroke-linecap: round;
+}
+
+.w-restart-head {
+    fill: #3ddc84;
 }
 
 .w-safe {

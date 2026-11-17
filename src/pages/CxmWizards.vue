@@ -114,9 +114,16 @@
                     <div
                         v-for="(item, index) in steps"
                         :key="index"
-                        :class="['cxm-step', { 'cxm-step-on': index === step, 'cxm-step-done': index < step }]"
-                        @click="step = index">
-                        <span class="cxm-step-n">{{ index < step ? '✓' : index + 1 }}</span>
+                        :class="[
+                            'cxm-step',
+                            {
+                                'cxm-step-on': index === shownStep,
+                                'cxm-step-done': index < shownStep,
+                                'cxm-step-running': index === running,
+                            },
+                        ]"
+                        @click="running === null && (step = index)">
+                        <span class="cxm-step-n">{{ index < shownStep ? '✓' : index + 1 }}</span>
                         <div class="cxm-step-text">
                             <div class="cxm-step-title">{{ item.title }}</div>
                             <div class="cxm-step-cmd">{{ item.command || 'you do this by hand' }}</div>
@@ -154,7 +161,14 @@
                         <div class="d-flex align-center cxm-wiz-actions">
                             <span v-if="current.warning" class="cxm-wiz-warn">{{ current.warning }}</span>
                             <v-spacer />
-                            <button v-if="step > 0" type="button" class="cxm-btn mr-2" @click="step--">Back</button>
+                            <button
+                                v-if="step > 0"
+                                type="button"
+                                class="cxm-btn mr-2"
+                                :disabled="running !== null"
+                                @click="step--">
+                                Back
+                            </button>
                             <button
                                 v-if="current.stop"
                                 type="button"
@@ -166,9 +180,9 @@
                             <button
                                 type="button"
                                 class="cxm-btn cxm-btn-main"
-                                :disabled="printing || (current.command !== '' && !current.ready)"
+                                :disabled="printing || running !== null || (current.command !== '' && !current.ready)"
                                 @click="runStep">
-                                {{ current.command ? 'Run step' : 'Done, next' }}
+                                {{ running !== null ? 'Running…' : current.command ? 'Run step' : 'Done, next' }}
                             </button>
                         </div>
                         <div v-if="current.command && !current.ready" class="cxm-wiz-warn mt-2">
@@ -191,7 +205,7 @@
 // input shaping. Each step shows a picture of what will move and the exact command, and only
 // runs when you press "Run step". Steps you do by hand (jogging, centring) just move on.
 import Component from 'vue-class-component'
-import { Mixins } from 'vue-property-decorator'
+import { Mixins, Watch } from 'vue-property-decorator'
 import CxmMixin, { CXM_DEFAULT_COLOR } from '@/components/mixins/cxm'
 import Panel from '@/components/ui/Panel.vue'
 import WebcamWrapper from '@/components/webcams/WebcamWrapper.vue'
@@ -259,6 +273,10 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     testPicked: number[] | null = null // null: every enabled hotend
     pidHeater = 'extruder'
     pidTarget = '220'
+    running: number | null = null // index of the step whose command is running
+    sentAt = 0
+    sawBusy = false
+    runningTimer: number | null = null
 
     get wizardList(): Wizard[] {
         return WIZARDS
@@ -522,9 +540,19 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
         return (this.current?.panels ?? []).filter((part) => part !== 'toolhead')
     }
 
+    // Klipper is executing commands (a step's command is still running)
+    get klipperBusy(): boolean {
+        return this.$store.state.printer.idle_timeout?.state === 'Printing'
+    }
+
+    // the step on screen: the running one while its command runs, otherwise the selected one
+    get shownStep(): number {
+        return this.running ?? this.step
+    }
+
     get current(): Step | null {
         if (this.unavailable) return null
-        const step = this.steps[Math.min(this.step, this.steps.length - 1)]
+        const step = this.steps[Math.min(this.shownStep, this.steps.length - 1)]
         if (!step) return null
 
         return { ready: true, notReady: '', ...step }
@@ -567,6 +595,7 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     reset() {
         this.step = 0
         this.finished = false
+        this.running = null
     }
 
     send(command: string) {
@@ -577,14 +606,47 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
 
     runStep() {
         const current = this.current
-        if (!current || this.printing) return
-        if (current.command) {
-            if (current.ready === false) return
-            this.send(current.command)
+        if (!current || this.printing || this.running !== null) return
+        if (!current.command) {
+            this.nextStep()
+            return
         }
+        if (current.ready === false) return
 
+        // stay on this step, with its picture, until Klipper has finished the command
+        this.send(current.command)
+        this.running = this.step
+        this.sentAt = Date.now()
+        this.sawBusy = false
+    }
+
+    nextStep() {
         if (this.step < this.steps.length - 1) this.step++
         else this.finished = true
+    }
+
+    @Watch('klipperBusy')
+    klipperBusyChanged(busy: boolean) {
+        if (busy) this.sawBusy = true
+        this.checkRunning()
+    }
+
+    // the running step is done once Klipper is idle again: it was seen busy, or a few
+    // seconds passed (quick commands can finish before the busy state reaches the page)
+    checkRunning() {
+        if (this.running === null || this.klipperBusy) return
+        if (!this.sawBusy && Date.now() - this.sentAt < 3000) return
+
+        this.running = null
+        this.nextStep()
+    }
+
+    mounted() {
+        this.runningTimer = window.setInterval(() => this.checkRunning(), 1000)
+    }
+
+    beforeDestroy() {
+        if (this.runningTimer !== null) window.clearInterval(this.runningTimer)
     }
 }
 </script>
@@ -790,6 +852,19 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
 .cxm-step-on .cxm-step-n {
     background: #ff8a1f;
     color: #1a0e00;
+}
+
+.cxm-step-running .cxm-step-n {
+    animation: cxm-step-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes cxm-step-pulse {
+    from {
+        box-shadow: 0 0 0 0 rgba(255, 138, 31, 0.7);
+    }
+    to {
+        box-shadow: 0 0 0 6px rgba(255, 138, 31, 0);
+    }
 }
 
 .cxm-step-done .cxm-step-n {
