@@ -53,7 +53,7 @@
                                 <strong>T{{ tool.n }}</strong>
                             </div>
                         </td>
-                        <td class="text--secondary">{{ tool.filament || '–' }}</td>
+                        <td class="text--secondary cxm-filament" :title="tool.filament">{{ tool.filament || '–' }}</td>
                         <td>
                             <template v-if="tool.temp !== null">
                                 <strong>{{ Math.round(tool.temp) }}°</strong>
@@ -216,6 +216,17 @@ export default class CxmToolsPanel extends Mixins(CxmMixin) {
 .cxm-table th {
     font-size: 10px !important;
     letter-spacing: 1px;
+}
+
+.cxm-table th,
+.cxm-table td {
+    white-space: nowrap;
+}
+
+.cxm-table td.cxm-filament {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .cxm-table tr.cxm-active td {

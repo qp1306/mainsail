@@ -34,11 +34,22 @@ function normHex(value: unknown): string | null {
     return match ? '#' + match[1].toLowerCase() : null
 }
 
+// slicer lists arrive as arrays, as JSON text ('["PLA", "PETG"]') or as 'PLA;PETG'
 function splitList(value: unknown): string[] {
-    if (Array.isArray(value)) return value.map((v) => String(v))
-    if (typeof value === 'string' && value !== '') return value.split(';')
+    if (Array.isArray(value)) return value.map((v) => String(v).trim())
+    if (typeof value !== 'string' || value.trim() === '') return []
 
-    return []
+    const text = value.trim()
+    if (text.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(text)
+            if (Array.isArray(parsed)) return parsed.map((v) => String(v).trim())
+        } catch (e) {
+            // not JSON after all: fall through to the ';' split
+        }
+    }
+
+    return text.split(';').map((v) => v.trim().replace(/^"(.*)"$/, '$1'))
 }
 
 @Component
