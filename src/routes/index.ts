@@ -11,6 +11,7 @@ import { AsyncComponent, Component } from 'vue'
 import {
     mdiGauge,
     mdiPlaylistPlay,
+    mdiAutoFix,
     mdiMonitorDashboard,
     mdiWebcam,
     mdiConsoleLine,
@@ -43,6 +44,17 @@ const routes: AppRoute[] = [
         showInNavi: true,
         klipperIsConnected: true,
         position: 6,
+    },
+    {
+        name: 'cxm-wizards',
+        title: 'Wizards',
+        path: '/cxm/wizards',
+        icon: mdiAutoFix,
+        component: () => import('../pages/CxmWizards.vue'),
+        alwaysShow: false,
+        showInNavi: true,
+        klipperIsConnected: true,
+        position: 7,
     },
     {
         name: 'dashboard',
