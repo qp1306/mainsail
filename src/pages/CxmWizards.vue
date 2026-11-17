@@ -151,7 +151,7 @@
                             <small>WILL SEND</small>
                             <code>{{ current.command }}</code>
                         </div>
-                        <div class="d-flex align-center">
+                        <div class="d-flex align-center cxm-wiz-actions">
                             <span v-if="current.warning" class="cxm-wiz-warn">{{ current.warning }}</span>
                             <v-spacer />
                             <button v-if="step > 0" type="button" class="cxm-btn mr-2" @click="step--">Back</button>
@@ -361,7 +361,7 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
                     {
                         title: 'Go to the dock',
                         command: x ? `CXM_DOCK_GOTO TOOL=${n} X=${x}` : 'CXM_DOCK_GOTO',
-                        caption: `With the carriage empty, it moves in front of T${n}'s dock at X ${x || '?'}.`,
+                        caption: `With the carriage empty, it moves in front of T${n}'s dock at X ${x ? Math.round(parseFloat(x) * 10) / 10 : '?'}.`,
                         scene: { kind: 'dock', tool: n },
                         panels: ['toolhead'],
                         ready: x !== '',
@@ -605,7 +605,7 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
 
 .cxm-wiz-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     grid-gap: 12px;
 }
 
@@ -672,7 +672,11 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
 .cxm-wiz-picture {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+}
+
+/* the buttons sit at the bottom of the picture box when it stretches */
+.cxm-wiz-actions {
+    margin-top: auto;
 }
 
 .cxm-wiz-head {

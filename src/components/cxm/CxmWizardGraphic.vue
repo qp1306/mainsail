@@ -6,9 +6,9 @@
         <template v-if="topView">
             <rect x="8" y="8" width="344" height="184" rx="8" class="w-area" />
             <text x="18" y="25" class="w-lbl">BACK</text>
-            <text x="18" y="146" class="w-lbl">FRONT</text>
-            <line x1="8" y1="135" x2="352" y2="135" class="w-safe" />
-            <g v-for="dock in docks" :key="dock.n" :transform="'translate(' + dock.x + ',172)'">
+            <text x="18" y="138" class="w-lbl">FRONT</text>
+            <line x1="8" y1="124" x2="352" y2="124" class="w-safe" />
+            <g v-for="dock in docks" :key="dock.n" :transform="'translate(' + dock.x + ',158)'">
                 <rect x="-14" y="-12" width="28" height="22" rx="4" :class="['w-dock', { 'w-dock-on': dock.on }]">
                     <animate
                         v-if="dock.on && scene.kind === 'save'"
@@ -18,7 +18,7 @@
                         repeatCount="indefinite" />
                 </rect>
                 <circle v-if="dock.full" r="7" :fill="dock.color" class="w-ball" />
-                <text y="24" text-anchor="middle" class="w-dock-lbl">T{{ dock.n }}</text>
+                <text y="25" text-anchor="middle" class="w-dock-lbl">T{{ dock.n }}</text>
             </g>
             <g v-if="showCamera" :transform="'translate(' + cam.x + ',' + cam.y + ')'">
                 <circle r="20" class="w-cam" />
@@ -57,7 +57,7 @@
                     dur="2.4s"
                     repeatCount="indefinite" />
             </g>
-            <g v-if="scene.kind === 'jog'" :transform="'translate(' + dockX(scene.tool) + ',150)'">
+            <g v-if="scene.kind === 'jog'" :transform="'translate(' + dockX(scene.tool) + ',144)'">
                 <text x="-30" y="4" class="w-arrow">◀</text>
                 <text x="22" y="4" class="w-arrow">▶</text>
                 <text x="-4" y="-18" class="w-arrow">▲</text>
@@ -225,14 +225,14 @@ export default class CxmWizardGraphic extends Vue {
         const h = this.home
         switch (this.scene.kind) {
             case 'dock':
-                return `M${h.x},${h.y} L${dx},120 L${dx},150`
+                return `M${h.x},${h.y} L${dx},108 L${dx},144`
             case 'cycle':
-                return `M${dx},150 L${dx},120 L${h.x},${h.y}`
+                return `M${dx},144 L${dx},108 L${h.x},${h.y}`
             case 'cam':
             case 'verify':
-                return `M${dx},150 L${dx},120 L${this.cam.x},${this.cam.y}`
+                return `M${dx},144 L${dx},108 L${this.cam.x},${this.cam.y}`
             case 'save':
-                return `M${dx},150 L${dx},150 L${dx},150`
+                return `M${dx},144 L${dx},144 L${dx},144`
             default:
                 return ''
         }
@@ -241,7 +241,7 @@ export default class CxmWizardGraphic extends Vue {
     get jogValues(): string {
         const dx = this.dockX(this.scene.tool)
 
-        return `${dx},150;${dx - 4},150;${dx + 4},150;${dx},146;${dx},150`
+        return `${dx},144;${dx - 4},144;${dx + 4},144;${dx},140;${dx},144`
     }
 }
 </script>
