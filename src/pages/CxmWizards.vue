@@ -127,8 +127,8 @@
 
             <!-- below: the panels this step needs on the left, its picture and controls on the right -->
             <v-row v-if="current">
-                <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
-                    <template v-for="part in current.panels">
+                <v-col v-if="sidePanels.length" class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
+                    <template v-for="part in sidePanels">
                         <panel
                             v-if="part === 'nozzle'"
                             :key="part"
@@ -139,11 +139,11 @@
                             <webcam-wrapper v-if="nozzleCam" :webcam="nozzleCam" page="cxm-wizards" />
                             <v-card-text v-else class="text--disabled">No camera set up yet.</v-card-text>
                         </panel>
-                        <toolhead-control-panel v-else-if="part === 'toolhead'" :key="part" />
                         <miniconsole-panel v-else-if="part === 'console'" :key="part" />
                     </template>
                 </v-col>
-                <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
+                <v-col
+                    :class="sidePanels.length ? 'col-12 col-lg-6 d-flex flex-column cxm-fill-last' : 'col-12'">
                     <div class="cxm-wiz-panel cxm-wiz-picture pa-3 mb-3 mb-md-6">
                         <cxm-wizard-graphic :scene="current.scene" :tool-numbers="toolNumbers" :colors="colors" />
                         <p class="cxm-wiz-caption">{{ current.caption }}</p>
@@ -180,6 +180,8 @@
                     </div>
                 </v-col>
             </v-row>
+            <!-- the jog panel runs full width under the picture when a step needs it -->
+            <toolhead-control-panel v-if="current && current.panels.includes('toolhead')" />
         </template>
     </div>
 </template>
@@ -406,40 +408,27 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
                     {
                         title: 'Bring T0 to the camera',
                         command: 'AXT0',
-                        caption: 'T0 is picked up and moved over the camera.',
+                        caption:
+                            'T0 is picked up and moved over the camera. Then jog X and Y until the nozzle sits on the cross: T0 is the reference for all the others.',
                         scene: { kind: 'cam', tool: 0 },
-                        panels: ['nozzle', 'toolhead'],
-                    },
-                    {
-                        title: 'Centre T0',
-                        command: '',
-                        caption: 'Jog X and Y until the nozzle sits on the cross. T0 is the reference for all the others.',
-                        scene: { kind: 'centre', tool: 0 },
                         panels: ['nozzle', 'toolhead'],
                     },
                 ]
                 let previous = 0
                 tools.forEach((t) => {
                     steps.push({
-                        title: `Save T${previous}, bring T${t}`,
+                        title: `Save T${previous}, now align T${t}`,
                         command: `AXT${t}`,
-                        caption: `T${previous}'s position is saved, it goes back to its dock and T${t} comes to the camera.`,
+                        caption: `With T${previous} on the cross: T${previous} is saved and parked, T${t} comes to the camera. Then jog T${t} onto the cross.`,
                         scene: { kind: 'cam', tool: t },
-                        panels: ['nozzle', 'toolhead'],
-                    })
-                    steps.push({
-                        title: `Centre T${t}`,
-                        command: '',
-                        caption: `Jog until T${t}'s nozzle sits on the cross.`,
-                        scene: { kind: 'centre', tool: t },
                         panels: ['nozzle', 'toolhead'],
                     })
                     previous = t
                 })
                 steps.push({
-                    title: tools.length ? `Save T${previous} and check them all` : 'Check',
+                    title: tools.length ? `Save T${previous}, check them all` : 'Check',
                     command: tools.length ? `CXM_CAM_VERIFY TOOLS=${tools.join(',')}` : 'CXM_CAM_VERIFY',
-                    caption: 'The last hotend is saved, then each one visits the camera so you can check it lands on the cross.',
+                    caption: `With T${previous} on the cross: it is saved, then each hotend visits the camera so you can check it lands on the cross.`,
                     scene: { kind: 'verify', tool: tools[0] ?? 0 },
                     panels: ['nozzle', 'console'],
                 })
@@ -526,6 +515,11 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
             default:
                 return []
         }
+    }
+
+    // panels beside the picture; the jog panel goes full width underneath instead
+    get sidePanels(): string[] {
+        return (this.current?.panels ?? []).filter((part) => part !== 'toolhead')
     }
 
     get current(): Step | null {
