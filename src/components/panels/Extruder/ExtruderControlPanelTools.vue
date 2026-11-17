@@ -7,6 +7,19 @@
                 </v-item-group>
             </v-col>
         </v-row>
+        <!-- CXM: put the hotend back in its dock -->
+        <v-row v-if="unloadMacro" class="mt-0">
+            <v-col class="py-0 px-6">
+                <button
+                    type="button"
+                    class="cxm-unload"
+                    :disabled="!canUnload"
+                    :title="canUnload ? 'Put the hotend back in its dock' : ''"
+                    @click="unload">
+                    {{ carriageEmpty ? 'Carriage empty' : 'Unload · empty carriage' }}
+                </button>
+            </v-col>
+        </v-row>
     </div>
 </template>
 
@@ -15,6 +28,7 @@ import { mdiPrinter3dNozzle } from '@mdi/js'
 import { Component, Mixins } from 'vue-property-decorator'
 import BaseMixin from '@/components/mixins/base'
 import ControlMixin from '@/components/mixins/control'
+import { PrinterStateMacro } from '@/store/printer/types'
 
 @Component({})
 export default class ExtruderControlPanel extends Mixins(BaseMixin, ControlMixin) {
@@ -46,6 +60,29 @@ export default class ExtruderControlPanel extends Mixins(BaseMixin, ControlMixin
         }
 
         return rows
+    }
+
+    // CXM: unload button, sent straight away like the tool buttons
+    get unloadMacro(): PrinterStateMacro | undefined {
+        const macros: PrinterStateMacro[] = this.$store.getters['printer/getMacros'] ?? []
+
+        return macros.find((macro) => macro.name.toUpperCase() === 'CXM_UNLOAD')
+    }
+
+    get carriageEmpty(): boolean {
+        const tool = this.$store.state.printer['gcode_macro _CXM_STATE']?.tool
+
+        return tool !== undefined && parseInt(tool) === -1
+    }
+
+    get canUnload(): boolean {
+        return !this.carriageEmpty && !['printing', 'paused'].includes(this.printer_state)
+    }
+
+    unload() {
+        if (!this.canUnload) return
+
+        this.$store.dispatch('printer/sendGcode', 'CXM_UNLOAD')
     }
 }
 </script>
@@ -86,5 +123,30 @@ export default class ExtruderControlPanel extends Mixins(BaseMixin, ControlMixin
 
 html.theme--light ._btn-group .v-btn {
     border-color: rgba(0, 0, 0, 0.12);
+}
+
+.cxm-unload {
+    width: 100%;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 138, 31, 0.5);
+    color: #ffb35c;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition:
+        background 0.15s,
+        color 0.15s;
+}
+
+.cxm-unload:hover:not(:disabled) {
+    background: #ff8a1f;
+    color: #1a0e00;
+}
+
+.cxm-unload:disabled {
+    opacity: 0.4;
+    cursor: default;
 }
 </style>
