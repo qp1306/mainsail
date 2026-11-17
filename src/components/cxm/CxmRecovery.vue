@@ -109,6 +109,28 @@
                         </div>
                     </template>
 
+                    <!-- 4 park (after a cancel) -->
+                    <template v-else-if="shown === 'park'">
+                        <div class="cxm-rec-h">Park the toolhead</div>
+                        <p class="cxm-rec-p">{{ parkText }}</p>
+                        <div class="cxm-preview mb-3">
+                            <small>WILL SEND</small>
+                            <code>{{ park }}</code>
+                        </div>
+                        <div v-if="rehomeError" class="cxm-rec-error mb-3">{{ rehomeError }}</div>
+                        <div class="cxm-rec-actions">
+                            <span v-if="!carriageOk" class="cxm-rec-warn">Do step 3 first.</span>
+                            <v-spacer />
+                            <button
+                                type="button"
+                                class="cxm-btn cxm-btn-main"
+                                :disabled="!rehomeReady || running !== null"
+                                @click="runPark">
+                                {{ running === 'park' ? 'Parking…' : 'Park' }}
+                            </button>
+                        </div>
+                    </template>
+
                     <!-- 5 resume -->
                     <template v-else-if="shown === 'finish'">
                         <div class="cxm-rec-h">Resume the print</div>
@@ -153,6 +175,7 @@ import {
     failureKind,
     HAND_CHECKS,
     lastCxmError,
+    parkGcode,
     rehomeGcode,
     type StepId,
     stepDone,
@@ -166,6 +189,7 @@ const STEP_TITLES: Record<StepId, string> = {
     hand: 'Fix by hand',
     carriage: "What's on it?",
     rehome: 'Re-home X/Y',
+    park: 'Park',
     finish: 'Resume',
 }
 
@@ -206,7 +230,7 @@ export default class CxmRecovery extends Mixins(CxmMixin) {
     }
 
     get steps(): StepId[] {
-        return stepList(this.snapshot)
+        return stepList(this.snapshot, cxmRecovery)
     }
 
     get current(): StepId {
@@ -262,6 +286,28 @@ export default class CxmRecovery extends Mixins(CxmMixin) {
         )
     }
 
+    get park(): string {
+        const toolhead = this.$store.state.printer.toolhead ?? {}
+
+        return parkGcode(
+            this.cxmTool,
+            toolhead.position?.[2] ?? 0,
+            toolhead.axis_maximum?.[2] ?? 0,
+            toolhead.homed_axes ?? '',
+            this.rehome
+        )
+    }
+
+    get parkText(): string {
+        const back = 'lifts and goes to the back centre, ready for the next print (it homes at the start).'
+        if (this.cxmTool >= 0)
+            return (
+                'Keep hands clear. Re-homes X/Y, puts T' + this.cxmTool + ' in its dock (that needs the re-home), then ' + back
+            )
+
+        return 'Keep hands clear. The empty carriage ' + back
+    }
+
     get rehomeReady(): boolean {
         return canRehome(this.snapshot)
     }
@@ -315,6 +361,12 @@ export default class CxmRecovery extends Mixins(CxmMixin) {
         this.start('rehome', this.rehome)
     }
 
+    runPark() {
+        if (!this.rehomeReady) return
+        this.rehomeError = ''
+        this.start('park', this.park)
+    }
+
     resume() {
         if (!this.resumeReady) return
         this.start('finish', 'CXM_RESUME')
@@ -327,8 +379,11 @@ export default class CxmRecovery extends Mixins(CxmMixin) {
             return
         }
         this.cancelArmed = false
+        const gcode = cancelGcode(this.snapshot, cxmRecovery, this.rehome)
         cxmRecovery.cancelled = true
-        this.$store.dispatch('printer/sendGcode', cancelGcode(this.snapshot, cxmRecovery, this.rehome))
+        // with the carriage known, CANCEL_PRINT puts a hotend away and parks at the back by itself
+        cxmRecovery.parked = this.carriageOk
+        this.$store.dispatch('printer/sendGcode', gcode)
     }
 
     start(id: StepId, gcode: string) {
@@ -355,10 +410,11 @@ export default class CxmRecovery extends Mixins(CxmMixin) {
         if (this.runningTimer !== null) window.clearInterval(this.runningTimer)
         this.runningTimer = null
 
-        if (id === 'rehome') {
+        if (id === 'rehome' || id === 'park') {
             const failed = this.errorSince(this.sentAt)
-            if (failed) this.rehomeError = 'Homing stopped: ' + failed
-            else cxmRecovery.rehomed = true
+            if (failed) this.rehomeError = (id === 'park' ? 'Parking stopped: ' : 'Homing stopped: ') + failed
+            else if (id === 'rehome') cxmRecovery.rehomed = true
+            else cxmRecovery.parked = true
         }
     }
 

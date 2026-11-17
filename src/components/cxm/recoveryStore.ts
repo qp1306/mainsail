@@ -10,6 +10,7 @@ export const cxmRecovery = Vue.observable({
     handDone: false, // step 2 ticked off
     rehomed: false, // step 4 finished without an error
     cancelled: false,
+    parked: false, // park step finished (after a cancel)
     jump: 0, // bumped once per incident; the Cockpit switches to Recovery when it changes
     jumpSeen: 0,
 })
@@ -22,6 +23,7 @@ export function openIncident(since: number) {
         handDone: false,
         rehomed: false,
         cancelled: false,
+        parked: false,
         jump: cxmRecovery.jump + 1,
     })
 }

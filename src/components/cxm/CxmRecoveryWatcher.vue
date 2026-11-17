@@ -33,11 +33,14 @@ export default class CxmRecoveryWatcher extends Mixins(CxmMixin) {
     }
 
     get closeKey(): string {
-        return [this.problem, cxmRecovery.open, cxmRecovery.rehomed, cxmRecovery.cancelled].join()
+        return [this.problem, cxmRecovery.open, cxmRecovery.rehomed, cxmRecovery.parked].join()
     }
 
     @Watch('problem', { immediate: true })
     problemChanged(problem: boolean) {
+        // a cancel counts as parked only if CANCEL_PRINT's own dock move worked: a new fault after
+        // it brings the Park step back
+        if (problem && cxmRecovery.open && cxmRecovery.cancelled && !this.snapshot.pending) cxmRecovery.parked = false
         if (this.timer !== null) window.clearTimeout(this.timer)
         this.timer = null
         if (!problem || cxmRecovery.open) return

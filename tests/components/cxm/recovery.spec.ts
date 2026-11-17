@@ -9,13 +9,14 @@ import {
     failureKind,
     isProblem,
     lastCxmError,
+    parkGcode,
     rehomeGcode,
     shouldClose,
     stepList,
 } from '@/components/cxm/recovery'
 
 const ok: CxmSnapshot = { tool: 1, fault: false, pending: false, busy: false }
-const fresh = { seen: false, handDone: false, rehomed: false, cancelled: false }
+const fresh = { seen: false, handDone: false, rehomed: false, cancelled: false, parked: false }
 
 describe('cxm recovery', () => {
     describe('isProblem', () => {
@@ -121,14 +122,21 @@ describe('cxm recovery', () => {
 
     describe('steps', () => {
         it('has a resume step only for a paused print', () => {
-            expect(stepList({ ...ok, tool: -2 })).toEqual(['what', 'hand', 'carriage', 'rehome'])
-            expect(stepList({ ...ok, tool: -2, pending: true })).toEqual([
+            expect(stepList({ ...ok, tool: -2 }, fresh)).toEqual(['what', 'hand', 'carriage', 'rehome'])
+            expect(stepList({ ...ok, tool: -2, pending: true }, fresh)).toEqual([
                 'what',
                 'hand',
                 'carriage',
                 'rehome',
                 'finish',
             ])
+        })
+
+        it('parks instead of re-homing after a cancel', () => {
+            const cancelled = { ...fresh, cancelled: true }
+            expect(stepList({ ...ok, tool: -2 }, cancelled)).toEqual(['what', 'hand', 'carriage', 'park'])
+            const known = { ...ok, tool: -1 }
+            expect(currentStep(known, { ...cancelled, seen: true, handDone: true })).toBe('park')
         })
 
         it('walks through in order', () => {
@@ -157,11 +165,32 @@ describe('cxm recovery', () => {
             expect(canResume(known, { ...fresh, rehomed: true })).toBe(true)
         })
 
-        it('re-homes before cancelling when the hotend would be parked', () => {
+        it('re-homes before cancelling only when a hotend goes into its dock', () => {
             expect(cancelGcode({ ...paused, tool: 2 }, fresh, 'G28 X Y')).toBe('G28 X Y\nCANCEL_PRINT')
             expect(cancelGcode({ ...paused, tool: 2 }, { ...fresh, rehomed: true }, 'G28 X Y')).toBe('CANCEL_PRINT')
+            // empty carriage: it only goes to the back, the next print homes anyway
+            expect(cancelGcode({ ...paused, tool: -1 }, fresh, 'G28 X Y')).toBe('CANCEL_PRINT')
             // carriage still unknown: CXM will not park, so nothing moves to the dock
             expect(cancelGcode(paused, fresh, 'G28 X Y')).toBe('CANCEL_PRINT')
+        })
+    })
+
+    describe('parkGcode', () => {
+        it('empty carriage: lifts and goes to the back, no re-home', () => {
+            expect(parkGcode(-1, 20, 340, 'xyz', 'REHOME').split('\n')).toEqual([
+                'G91',
+                'G1 Z5 F600',
+                'G90',
+                '_PRINT_END_PARK',
+            ])
+        })
+
+        it('hotend on the carriage: re-homes before putting it in its dock', () => {
+            expect(parkGcode(1, 20, 340, 'xyz', 'REHOME').split('\n').slice(0, 2)).toEqual(['REHOME', 'CXM_UNLOAD'])
+        })
+
+        it('homes X/Y first if they were never homed', () => {
+            expect(parkGcode(-1, 0, 340, '', 'REHOME').split('\n')).toEqual(['G28 X Y', '_PRINT_END_PARK'])
         })
     })
 
@@ -175,9 +204,10 @@ describe('cxm recovery', () => {
             expect(shouldClose({ ...ok, pending: true }, { ...fresh, rehomed: true })).toBe(false)
         })
 
-        it('closes after a cancel once the carriage is known', () => {
-            expect(shouldClose({ ...ok, tool: -1 }, { ...fresh, cancelled: true })).toBe(true)
-            expect(shouldClose({ ...ok, tool: -2 }, { ...fresh, cancelled: true })).toBe(false)
+        it('stays open after a cancel until the carriage is known and parked', () => {
+            expect(shouldClose({ ...ok, tool: -1 }, { ...fresh, cancelled: true })).toBe(false)
+            expect(shouldClose({ ...ok, tool: -1 }, { ...fresh, cancelled: true, parked: true })).toBe(true)
+            expect(shouldClose({ ...ok, tool: -2 }, { ...fresh, cancelled: true, parked: true })).toBe(false)
         })
     })
 })
