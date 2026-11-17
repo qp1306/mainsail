@@ -258,3 +258,38 @@
 .cxm-fill-last > :last-child {
     flex-grow: 1;
 }
+
+/* CXM pages: when the console is the stretched last panel, its message list fills the extra height
+   (never less than 300px) instead of leaving an empty gap at the bottom */
+.cxm-fill-last > .miniconsole-panel:last-child {
+    display: flex;
+    flex-direction: column;
+}
+.cxm-fill-last > .miniconsole-panel:last-child > div {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+}
+.cxm-fill-last > .miniconsole-panel:last-child > div > .d-flex.flex-column {
+    flex: 1 1 auto;
+}
+.cxm-fill-last > .miniconsole-panel:last-child .v-card__text.pa-0 {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+}
+.cxm-fill-last > .miniconsole-panel:last-child .v-card__text.pa-0 > .row {
+    flex: 1 1 auto;
+}
+.cxm-fill-last > .miniconsole-panel:last-child .v-card__text.pa-0 > .row > .col {
+    position: relative;
+    min-height: 324px;
+}
+.cxm-fill-last > .miniconsole-panel:last-child .v-card__text.pa-0 > .row > .col > :first-child {
+    position: absolute !important;
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    height: auto !important;
+}
