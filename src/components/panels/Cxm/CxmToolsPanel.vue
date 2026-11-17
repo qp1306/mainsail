@@ -122,12 +122,20 @@ export default class CxmToolsPanel extends Mixins(CxmMixin) {
         return value === undefined ? null : parseFloat(value)
     }
 
+    get changing(): boolean {
+        const idle = this.$store.state.printer.idle_timeout?.state ?? ''
+
+        return parseInt(this.cxmState.busy ?? 0) === 1 && idle === 'Printing'
+    }
+
     get alertText(): string {
         const state = this.cxmState
         if (parseInt(state.pending ?? 0) === 1)
             return 'Print paused by CXM: fix the carriage, then CXM_SET_TOOL TOOL=n, then CXM_RESUME.'
-        // a tool change in progress passes through "unknown" on purpose: don't flash an error
-        if (parseInt(state.busy ?? 0) === 1) return ''
+        // a tool change in progress passes through "unknown" on purpose: don't flash an error.
+        // Only while Klipper is still executing commands: if a change fails, Klipper stops,
+        // and the warning shows even if CXM's busy flag was never cleared.
+        if (this.changing) return ''
         if (this.cxmTool === -2 || parseInt(state.fault ?? 0) === 1)
             return 'Carriage state unknown: look at it, then CXM_SET_TOOL TOOL=n (or TOOL=-1 if empty).'
         if (
