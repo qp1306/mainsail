@@ -12,17 +12,17 @@
         </div>
 
         <v-row v-if="tab === 'control'">
-            <v-col class="col-12 col-lg-6">
+            <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
                 <extruder-control-panel />
             </v-col>
-            <v-col class="col-12 col-lg-6">
+            <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
                 <miscellaneous-panel />
                 <machine-settings-panel />
             </v-col>
         </v-row>
 
         <v-row v-else>
-            <v-col class="col-12 col-lg-7">
+            <v-col class="col-12 col-lg-7 d-flex flex-column cxm-fill-last">
                 <cxm-tools-panel />
                 <cxm-gantry-panel />
                 <miniconsole-panel />
@@ -124,7 +124,7 @@ export default class PageCockpit extends Mixins(BaseMixin) {
 </style>
 
 <style>
-/* the last panel in the column (the toolhead) stretches so both columns end level */
+/* the last panel in each column stretches so the columns end level */
 .cxm-fill-last > :last-child {
     flex-grow: 1;
 }

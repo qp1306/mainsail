@@ -11,6 +11,24 @@ import BaseMixin from '@/components/mixins/base'
 import ControlMixin from '@/components/mixins/control'
 import { ServerSpoolmanStateSpool } from '@/store/server/spoolman/types'
 
+// CXM: slicer lists arrive as arrays, as JSON text ('["#FF0000", ...]') or as '#FF0000;#00FF00'
+function splitList(value: unknown): string[] {
+    if (Array.isArray(value)) return value.map((v) => String(v).trim())
+    if (typeof value !== 'string' || value.trim() === '') return []
+
+    const text = value.trim()
+    if (text.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(text)
+            if (Array.isArray(parsed)) return parsed.map((v) => String(v).trim())
+        } catch (e) {
+            // not JSON after all: fall through to the ';' split
+        }
+    }
+
+    return text.split(';').map((v) => v.trim())
+}
+
 @Component({
     components: {},
 })
@@ -26,8 +44,19 @@ export default class ExtruderControlPanel extends Mixins(BaseMixin, ControlMixin
         return this.$store.state.printer[objectName] ?? {}
     }
 
+    // CXM: the hotend number of a Tn button, or null for other tool macros
+    get toolNumber(): number | null {
+        const match = (this.name ?? '').toUpperCase().match(/^T(\d+)$/)
+
+        return match ? parseInt(match[1]) : null
+    }
+
     get active() {
-        return this.macro?.active ?? false
+        if (this.macro?.active !== undefined) return this.macro.active
+
+        // CXM: the hotend on the carriage, from the CXM macros' state
+        const tool = this.$store.state.printer['gcode_macro _CXM_STATE']?.tool
+        return tool !== undefined && this.toolNumber !== null && parseInt(tool) === this.toolNumber
     }
 
     get color() {
@@ -36,9 +65,22 @@ export default class ExtruderControlPanel extends Mixins(BaseMixin, ControlMixin
         }
 
         const color = this.macro?.color ?? this.macro?.colour ?? null
-        if (color === '' || color === 'undefined') return null
+        if (color !== null && color !== '' && color !== 'undefined') return color
 
-        return color
+        return this.fileColor
+    }
+
+    // CXM: the colour the loaded G-code file (OrcaSlicer etc.) gives this hotend
+    get fileColor(): string | null {
+        if (this.toolNumber === null) return null
+
+        const file = this.$store.state.printer.current_file ?? {}
+        const colors = splitList(file.filament_colors).length
+            ? splitList(file.filament_colors)
+            : splitList(file.extruder_colors)
+        const match = (colors[this.toolNumber] ?? '').match(/^#?([0-9a-f]{6})/i)
+
+        return match ? match[1] : null
     }
 
     get spoolId() {
