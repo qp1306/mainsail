@@ -15,6 +15,16 @@ export const cxmRecovery = Vue.observable({
     jumpSeen: 0,
 })
 
+// a cancel from any button (this tab, Mainsail's own Cancel, the console) counts: the print state
+// says "cancelled". A problem that opens just after a cancel belongs to it.
+const CANCEL_WINDOW_MS = 30000
+let cancelledAt = 0
+
+export function markCancelled(now: number) {
+    cancelledAt = now
+    if (cxmRecovery.open) cxmRecovery.cancelled = true
+}
+
 export function openIncident(since: number) {
     Object.assign(cxmRecovery, {
         open: true,
@@ -22,7 +32,7 @@ export function openIncident(since: number) {
         seen: false,
         handDone: false,
         rehomed: false,
-        cancelled: false,
+        cancelled: since - cancelledAt < CANCEL_WINDOW_MS,
         parked: false,
         jump: cxmRecovery.jump + 1,
     })

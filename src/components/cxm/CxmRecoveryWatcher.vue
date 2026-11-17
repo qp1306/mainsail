@@ -11,7 +11,7 @@ import Component from 'vue-class-component'
 import { Mixins, Watch } from 'vue-property-decorator'
 import CxmMixin from '@/components/mixins/cxm'
 import { type CxmSnapshot, isProblem, shouldClose } from '@/components/cxm/recovery'
-import { closeIncident, cxmRecovery, openIncident } from '@/components/cxm/recoveryStore'
+import { closeIncident, cxmRecovery, markCancelled, openIncident } from '@/components/cxm/recoveryStore'
 
 const SETTLE_MS = 1500
 
@@ -53,6 +53,15 @@ export default class CxmRecoveryWatcher extends Mixins(CxmMixin) {
             openIncident(since)
             if (this.$route.name !== 'cockpit') this.$router.push({ name: 'cockpit' }).catch(() => {})
         }, SETTLE_MS)
+    }
+
+    get printState(): string {
+        return this.$store.state.printer.print_stats?.state ?? ''
+    }
+
+    @Watch('printState')
+    printStateChanged(state: string, old: string) {
+        if (state === 'cancelled' && old !== 'cancelled') markCancelled(Date.now())
     }
 
     @Watch('closeKey')
