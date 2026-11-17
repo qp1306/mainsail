@@ -265,10 +265,16 @@
     display: flex;
     flex-direction: column;
 }
-.cxm-fill-last > .miniconsole-panel:last-child > div {
+.cxm-fill-last > .miniconsole-panel:last-child > .v-toolbar {
+    flex: 0 0 auto;
+}
+.cxm-fill-last > .miniconsole-panel:last-child > div:not(.v-toolbar):last-child {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
+}
+.cxm-fill-last > .miniconsole-panel:last-child .v-card__text:not(.pa-0) {
+    flex: 0 0 auto;
 }
 .cxm-fill-last > .miniconsole-panel:last-child > div > .d-flex.flex-column {
     flex: 1 1 auto;
