@@ -27,7 +27,7 @@
                 <cxm-gantry-panel />
                 <miniconsole-panel />
             </v-col>
-            <v-col class="col-12 col-lg-5">
+            <v-col class="col-12 col-lg-5 d-flex flex-column cxm-fill-last">
                 <status-panel />
                 <toolhead-control-panel />
             </v-col>
@@ -120,5 +120,12 @@ export default class PageCockpit extends Mixins(BaseMixin) {
 .cxm-tab-on {
     color: #e6ebf5;
     border-bottom-color: #ff8a1f;
+}
+</style>
+
+<style>
+/* the last panel in the column (the toolhead) stretches so both columns end level */
+.cxm-fill-last > :last-child {
+    flex-grow: 1;
 }
 </style>
