@@ -47,17 +47,6 @@
                     <span class="cxm-tile-temp">{{ tile.temp }}</span>
                 </div>
                 <div class="cxm-tile-state">{{ tile.state }}</div>
-                <div class="cxm-tile-actions">
-                    <button
-                        v-for="action in tile.actions"
-                        :key="action.label"
-                        type="button"
-                        :disabled="isLocked(action.macro.name)"
-                        :title="action.hint"
-                        @click.stop="openMacro(action.macro, action.preset)">
-                        {{ action.label }}
-                    </button>
-                </div>
             </div>
             <div
                 v-if="unloadMacro"
@@ -85,7 +74,7 @@
 
         <!-- workflow lanes: each lane lists its jobs; a job opens its workspace below -->
         <v-row class="mb-1">
-            <v-col v-for="lane in lanes" :key="lane.id" class="col-12 col-md-4 py-2">
+            <v-col v-for="lane in lanes" :key="lane.id" :class="'col-12 py-2 col-md-' + laneWidth">
                 <div class="cxm-lane cxm-lane-compact">
                     <div class="cxm-lane-head">
                         <span class="cxm-lane-step">{{ lane.step }}</span>
@@ -95,10 +84,6 @@
                         </div>
                     </div>
                     <div class="cxm-jobs">
-                        <router-link v-if="lane.id === 'setup'" to="/cxm/wizards" class="cxm-job cxm-job-link">
-                            <v-icon small class="mr-1">{{ mdiAutoFix }}</v-icon>
-                            Open the wizards →
-                        </router-link>
                         <button
                             v-for="item in lane.jobs"
                             :key="item.id"
@@ -115,14 +100,9 @@
 
         <!-- no job open: every macro, lane by lane -->
         <v-row v-if="!activeJob">
-            <v-col v-for="lane in lanes" :key="lane.id" class="col-12 col-lg-4">
+            <v-col v-for="lane in lanes" :key="lane.id" :class="'col-12 col-lg-' + laneWidth">
                 <div class="cxm-lane">
-                    <div v-if="lane.id === 'setup'" class="cxm-empty">
-                        Docks, pick-up test, camera and Z are on the
-                        <router-link to="/cxm/wizards">Wizards</router-link>
-                        page, step by step.
-                    </div>
-                    <div v-else-if="lane.rows.length === 0" class="cxm-empty">
+                    <div v-if="lane.rows.length === 0" class="cxm-empty">
                         {{ search ? 'No match' : 'Nothing here' }}
                     </div>
                     <div
@@ -312,7 +292,6 @@ import { PrinterStateMacro } from '@/store/printer/types'
 import { GuiWebcamStateWebcam } from '@/store/gui/webcams/types'
 import {
     mdiClose,
-    mdiAutoFix,
     mdiCodeBraces,
     mdiConsoleLine,
     mdiFormatListChecks,
@@ -353,31 +332,17 @@ interface Job {
     right: string[] // panels in the narrow column
 }
 
-interface TileAction {
-    label: string
-    hint: string
-    macro: PrinterStateMacro
-    preset: Record<string, string>
-}
-
 const LANES = [
     {
-        id: 'setup',
-        step: '1',
-        title: 'Set up',
-        subtitle: 'Calibrate and test before you print',
-        first: ['CXM_AUTO_GLOBAL_Z', 'CXM_CAM_SAVE', 'CXM_CAM_VERIFY', 'CXM_DOCK_SAVE', 'CXM_DOCK_GOTO'],
-    },
-    {
         id: 'print',
-        step: '2',
+        step: '1',
         title: 'Print',
         subtitle: 'Start, nudge Z, pause and finish',
         first: ['PRINT_START', '@ZNUDGE', 'PAUSE', 'RESUME', 'CANCEL_PRINT', 'PRINT_END'],
     },
     {
         id: 'fix',
-        step: '3',
+        step: '2',
         title: 'Fix',
         subtitle: 'Check state and recover when something goes wrong',
         first: ['CXM_STATUS', 'CXM_RESUME', 'CXM_SET_TOOL', 'CXM_CHANGE', 'CXM_SETTINGS', 'CXM_HELP'],
@@ -426,11 +391,11 @@ const JOBS: Job[] = [
 ]
 
 // shown on the hotend tiles, not as rows
-const TILE_MACROS = /^(T\d+|AXT\d+|CXM_CAM_GOTO|CXM_UNLOAD)$/
+const TILE_MACROS = /^(T\d+|CXM_UNLOAD)$/
 
 // run from the Wizards page, not listed here
 const WIZARD_MACROS =
-    /^CXM_(DOCK_GOTO|DOCK_SAVE|TEST|TEST_STOP|CAM_SAVE|CAM_VERIFY|Z_CALIBRATE|Z_VERIFY|AUTO_GLOBAL_Z)$/
+    /^(AXT\d+|CXM_(DOCK_GOTO|DOCK_SAVE|TEST|TEST_STOP|CAM_SAVE|CAM_VERIFY|Z_CALIBRATE|Z_VERIFY|AUTO_GLOBAL_Z))$/
 
 const Z_NUDGE: [string, string][] = [
     ['CXM_Z_MINUS_050', '−.05'],
@@ -490,7 +455,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     mdiStarOutline = mdiStarOutline
     mdiViewGridOutline = mdiViewGridOutline
     mdiWebcam = mdiWebcam
-    mdiAutoFix = mdiAutoFix
 
     search = ''
     favourites: string[] = loadList(FAV_KEY)
@@ -542,26 +506,8 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     }
 
     get tiles() {
-        const camGoto = this.macro('CXM_CAM_GOTO')
-
         return this.cxmTools.map((tool) => {
-            const actions: TileAction[] = []
             const pick = this.macro('T' + tool.n)
-            const align = this.macro('AXT' + tool.n)
-            if (align)
-                actions.push({
-                    label: 'Align',
-                    hint: 'Save the hotend now over the camera, then bring T' + tool.n,
-                    macro: align,
-                    preset: {},
-                })
-            if (camGoto)
-                actions.push({
-                    label: 'Cam',
-                    hint: 'Bring T' + tool.n + ' to the camera',
-                    macro: camGoto,
-                    preset: { TOOL: String(tool.n) },
-                })
             const mounted = tool.n === this.cxmTool
             let state = tool.enabled ? 'in dock' : 'disabled'
             if (mounted) state = 'on carriage'
@@ -574,7 +520,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
                 enabled: tool.enabled,
                 pick,
                 state,
-                actions,
             }
         })
     }
@@ -667,6 +612,11 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
                 ),
             }
         }).filter((lane) => lane.id !== 'other' || lane.jobs.length > 0)
+    }
+
+    // the lanes share the row: 2 lanes half each, 3 a third each
+    get laneWidth(): number {
+        return Math.floor(12 / Math.max(1, this.lanes.length))
     }
 
     get activeJob(): Job | null {
@@ -904,12 +854,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     color: #ff8a1f;
 }
 
-.cxm-tile-actions {
-    display: flex;
-    gap: 5px;
-}
-
-.cxm-tile-actions button,
 .cxm-run {
     flex: 1;
     height: 28px;
@@ -925,13 +869,11 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         color 0.15s;
 }
 
-.cxm-tile-actions button:hover:not(:disabled),
 .cxm-run:hover:not(:disabled) {
     background: #ff8a1f;
     color: #1a0e00;
 }
 
-.cxm-tile-actions button:disabled,
 .cxm-run:disabled {
     opacity: 0.35;
     cursor: not-allowed;
@@ -1007,14 +949,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
 
 .cxm-job:hover {
     border-color: rgba(255, 138, 31, 0.7);
-}
-
-.cxm-job-link {
-    display: inline-flex;
-    align-items: center;
-    text-decoration: none;
-    border-color: rgba(255, 138, 31, 0.6);
-    color: #ffb35c !important;
 }
 
 .cxm-job-on {
