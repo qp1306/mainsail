@@ -5,13 +5,15 @@
                 v-for="item in tabs"
                 :key="item.id"
                 type="button"
-                :class="['cxm-tab', { 'cxm-tab-on': tab === item.id }]"
+                :class="['cxm-tab', { 'cxm-tab-on': shownTab === item.id, 'cxm-tab-alert': item.id === 'recovery' }]"
                 @click="selectTab(item.id)">
                 {{ item.title }}
             </button>
         </div>
 
-        <v-row v-if="tab === 'control'">
+        <cxm-recovery v-if="shownTab === 'recovery'" />
+
+        <v-row v-else-if="shownTab === 'control'">
             <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
                 <extruder-control-panel />
             </v-col>
@@ -39,10 +41,13 @@
 <script lang="ts">
 // CXM Cockpit: toolchanger overview next to Mainsail's own print status, controls and console.
 // Temperatures sit under the toolhead. The Control tab holds Mainsail's extruder, fan and
-// machine-limit panels.
+// machine-limit panels. A red Recovery tab appears while CXM needs help (see CxmRecoveryWatcher);
+// it is selected once per problem, never saved as the remembered tab.
 import Component from 'vue-class-component'
-import { Mixins } from 'vue-property-decorator'
+import { Mixins, Watch } from 'vue-property-decorator'
 import BaseMixin from '@/components/mixins/base'
+import CxmRecovery from '@/components/cxm/CxmRecovery.vue'
+import { cxmRecovery } from '@/components/cxm/recoveryStore'
 import CxmToolsPanel from '@/components/panels/Cxm/CxmToolsPanel.vue'
 import CxmGantryPanel from '@/components/panels/Cxm/CxmGantryPanel.vue'
 import StatusPanel from '@/components/panels/StatusPanel.vue'
@@ -65,6 +70,7 @@ function loadTab(): string {
 
 @Component({
     components: {
+        CxmRecovery,
         CxmToolsPanel,
         CxmGantryPanel,
         StatusPanel,
@@ -77,15 +83,39 @@ function loadTab(): string {
     },
 })
 export default class PageCockpit extends Mixins(BaseMixin) {
-    tabs = [
-        { id: 'cockpit', title: 'Cockpit' },
-        { id: 'control', title: 'Control' },
-    ]
+    get tabs() {
+        const tabs = [
+            { id: 'cockpit', title: 'Cockpit' },
+            { id: 'control', title: 'Control' },
+        ]
+        if (cxmRecovery.open) tabs.push({ id: 'recovery', title: 'Recovery' })
+
+        return tabs
+    }
 
     tab = loadTab()
 
+    // Recovery falls back to Cockpit once it closes
+    get shownTab(): string {
+        if (this.tab === 'recovery' && !cxmRecovery.open) return 'cockpit'
+
+        return this.tabs.some((item) => item.id === this.tab) ? this.tab : 'cockpit'
+    }
+
+    get recoveryJump(): number {
+        return cxmRecovery.jump
+    }
+
+    @Watch('recoveryJump', { immediate: true })
+    recoveryJumpChanged() {
+        if (!cxmRecovery.open || cxmRecovery.jumpSeen === cxmRecovery.jump) return
+        cxmRecovery.jumpSeen = cxmRecovery.jump
+        this.tab = 'recovery'
+    }
+
     selectTab(id: string) {
         this.tab = id
+        if (id === 'recovery') return
         try {
             window.localStorage.setItem(TAB_KEY, id)
         } catch (e) {
@@ -124,5 +154,25 @@ export default class PageCockpit extends Mixins(BaseMixin) {
 .cxm-tab-on {
     color: #e6ebf5;
     border-bottom-color: #ff8a1f;
+}
+
+.cxm-tab-alert {
+    color: #ff4d5e;
+    animation: cxm-tab-blink 1.2s ease-in-out infinite alternate;
+}
+
+.cxm-tab-alert.cxm-tab-on {
+    color: #ff4d5e;
+    border-bottom-color: #ff4d5e;
+    animation: none;
+}
+
+@keyframes cxm-tab-blink {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0.45;
+    }
 }
 </style>

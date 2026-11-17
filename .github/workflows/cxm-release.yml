@@ -42,6 +42,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: CXM unit tests
+        run: npx vitest run tests/components/cxm
+
       - name: Build
         env:
           CXM_VERSION: ${{ steps.ver.outputs.tag }}

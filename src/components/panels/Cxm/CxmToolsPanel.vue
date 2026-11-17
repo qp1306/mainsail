@@ -131,13 +131,13 @@ export default class CxmToolsPanel extends Mixins(CxmMixin) {
     get alertText(): string {
         const state = this.cxmState
         if (parseInt(state.pending ?? 0) === 1)
-            return 'Print paused by CXM: fix the carriage, then CXM_SET_TOOL TOOL=n, then CXM_RESUME.'
+            return 'Print paused by CXM: follow the steps on the Recovery tab.'
         // a tool change in progress passes through "unknown" on purpose: don't flash an error.
         // Only while Klipper is still executing commands: if a change fails, Klipper stops,
         // and the warning shows even if CXM's busy flag was never cleared.
         if (this.changing) return ''
         if (this.cxmTool === -2 || parseInt(state.fault ?? 0) === 1)
-            return 'Carriage state unknown: look at it, then CXM_SET_TOOL TOOL=n (or TOOL=-1 if empty).'
+            return 'Carriage state unknown: follow the steps on the Recovery tab.'
         if (
             this.cxmSensor &&
             parseInt(state.busy ?? 0) !== 1 &&
