@@ -140,6 +140,22 @@ export default class CxmMixin extends Mixins(BaseMixin) {
         return tools
     }
 
+    // a colour to use for text, outlines and glows: very dark filaments (black, navy)
+    // are lifted towards white so they stay visible on the dark theme
+    cxmVisible(hex: string): string {
+        const value = parseInt(hex.slice(1), 16)
+        const rgb = [value >> 16, (value >> 8) & 255, value & 255]
+        if (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] >= 90) return hex
+
+        return (
+            '#' +
+            rgb
+                .map((c) => Math.round(c + (255 - c) * 0.55))
+                .map((c) => c.toString(16).padStart(2, '0'))
+                .join('')
+        )
+    }
+
     cxmTextOn(hex: string): string {
         const value = parseInt(hex.slice(1), 16)
         const r = value >> 16

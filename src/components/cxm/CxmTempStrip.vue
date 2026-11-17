@@ -45,7 +45,7 @@ export default class CxmTempStrip extends Mixins(CxmMixin) {
             key: tool.heater,
             label: 'T' + tool.n,
             value: deg(tool.temp),
-            color: tool.color === CXM_DEFAULT_COLOR ? '#e6ebf5' : tool.color,
+            color: tool.color === CXM_DEFAULT_COLOR ? '#e6ebf5' : this.cxmVisible(tool.color),
         }))
 
         if (printer.heater_bed) {

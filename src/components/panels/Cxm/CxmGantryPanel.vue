@@ -54,7 +54,14 @@
                     class="cxm-carriage"
                     :style="{ transform: 'translate(' + carriage.x + 'px,' + carriage.y + 'px)' }">
                     <circle v-if="busy" r="24" fill="none" stroke="#ff8a1f" stroke-width="2" class="cxm-halo" />
-                    <rect x="-20" y="-17" width="40" height="34" rx="7" class="cxm-car-body" />
+                    <rect
+                        x="-20"
+                        y="-17"
+                        width="40"
+                        height="34"
+                        rx="7"
+                        class="cxm-car-body"
+                        :style="carriageTool ? { stroke: cxmVisible(carriageTool.color) } : {}" />
                     <circle v-if="carriageTool" r="12" :fill="carriageTool.color" class="cxm-ball" />
                     <text
                         y="4"

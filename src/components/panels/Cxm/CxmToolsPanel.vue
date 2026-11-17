@@ -103,7 +103,11 @@ export default class CxmToolsPanel extends Mixins(CxmMixin) {
     }
 
     get mountedStyle(): Record<string, string> {
-        const color = this.mountedTool ? this.mountedTool.color : this.cxmTool === -2 ? '#ff4d5e' : '#5b6472'
+        const color = this.mountedTool
+            ? this.cxmVisible(this.mountedTool.color)
+            : this.cxmTool === -2
+              ? '#ff4d5e'
+              : '#5b6472'
 
         return { borderColor: color, boxShadow: '0 0 16px -6px ' + color }
     }
@@ -122,6 +126,8 @@ export default class CxmToolsPanel extends Mixins(CxmMixin) {
         const state = this.cxmState
         if (parseInt(state.pending ?? 0) === 1)
             return 'Print paused by CXM: fix the carriage, then CXM_SET_TOOL TOOL=n, then CXM_RESUME.'
+        // a tool change in progress passes through "unknown" on purpose: don't flash an error
+        if (parseInt(state.busy ?? 0) === 1) return ''
         if (this.cxmTool === -2 || parseInt(state.fault ?? 0) === 1)
             return 'Carriage state unknown: look at it, then CXM_SET_TOOL TOOL=n (or TOOL=-1 if empty).'
         if (

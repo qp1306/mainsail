@@ -25,11 +25,11 @@
             <v-col class="col-12 col-lg-7">
                 <cxm-tools-panel />
                 <cxm-gantry-panel />
+                <miniconsole-panel />
             </v-col>
             <v-col class="col-12 col-lg-5">
                 <status-panel />
                 <toolhead-control-panel />
-                <miniconsole-panel />
             </v-col>
         </v-row>
     </div>
