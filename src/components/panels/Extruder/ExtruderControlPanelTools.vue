@@ -20,13 +20,29 @@ import ControlMixin from '@/components/mixins/control'
 export default class ExtruderControlPanel extends Mixins(BaseMixin, ControlMixin) {
     mdiPrinter3dNozzle = mdiPrinter3dNozzle
 
+    // CXM: skip Tn macros for hotends that aren't installed (no extruderN heater and
+    // no saved CXM variables for it), so T6-T11 don't show on a six-hotend machine
+    get tools(): string[] {
+        const printer = this.$store.state.printer
+        const vars = printer.save_variables?.variables ?? {}
+
+        return this.toolchangeMacros.filter((name: string) => {
+            const match = name.toUpperCase().match(/^T(\d+)$/)
+            if (!match) return true
+            const n = parseInt(match[1])
+            const heater = n === 0 ? 'extruder' : 'extruder' + n
+
+            return heater in printer || 't' + n + '_dock_x' in vars || 't' + n + '_enabled' in vars
+        })
+    }
+
     get rows() {
-        const len = this.toolchangeMacros.length
+        const len = this.tools.length
         const cols = Math.ceil(len / Math.ceil(len / 6))
         const rows = []
 
-        for (let i = 0; i < this.toolchangeMacros.length; i += cols) {
-            rows.push(this.toolchangeMacros.slice(i, i + cols))
+        for (let i = 0; i < this.tools.length; i += cols) {
+            rows.push(this.tools.slice(i, i + cols))
         }
 
         return rows
