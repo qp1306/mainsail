@@ -30,6 +30,7 @@
             <v-col class="col-12 col-lg-5 d-flex flex-column cxm-fill-last">
                 <status-panel />
                 <toolhead-control-panel />
+                <temperature-panel />
             </v-col>
         </v-row>
     </div>
@@ -37,7 +38,8 @@
 
 <script lang="ts">
 // CXM Cockpit: toolchanger overview next to Mainsail's own print status, controls and console.
-// The Control tab holds Mainsail's extruder, fan and machine-limit panels.
+// Temperatures sit under the toolhead. The Control tab holds Mainsail's extruder, fan and
+// machine-limit panels.
 import Component from 'vue-class-component'
 import { Mixins } from 'vue-property-decorator'
 import BaseMixin from '@/components/mixins/base'
@@ -49,6 +51,7 @@ import MiniconsolePanel from '@/components/panels/MiniconsolePanel.vue'
 import ExtruderControlPanel from '@/components/panels/ExtruderControlPanel.vue'
 import MiscellaneousPanel from '@/components/panels/MiscellaneousPanel.vue'
 import MachineSettingsPanel from '@/components/panels/MachineSettingsPanel.vue'
+import TemperaturePanel from '@/components/panels/TemperaturePanel.vue'
 
 const TAB_KEY = 'cxm.cockpitTab'
 
@@ -70,6 +73,7 @@ function loadTab(): string {
         ExtruderControlPanel,
         MiscellaneousPanel,
         MachineSettingsPanel,
+        TemperaturePanel,
     },
 })
 export default class PageCockpit extends Mixins(BaseMixin) {
