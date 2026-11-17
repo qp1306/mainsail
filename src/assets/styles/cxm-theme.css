@@ -253,3 +253,8 @@
 ::-webkit-scrollbar-thumb:hover {
     background: var(--cxm-accent);
 }
+
+/* CXM pages: the last panel in each column stretches so the columns end level at the bottom */
+.cxm-fill-last > :last-child {
+    flex-grow: 1;
+}

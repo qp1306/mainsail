@@ -126,10 +126,3 @@ export default class PageCockpit extends Mixins(BaseMixin) {
     border-bottom-color: #ff8a1f;
 }
 </style>
-
-<style>
-/* the last panel in each column stretches so the columns end level */
-.cxm-fill-last > :last-child {
-    flex-grow: 1;
-}
-</style>

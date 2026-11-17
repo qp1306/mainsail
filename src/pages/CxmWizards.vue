@@ -25,161 +25,162 @@
             A print is running: the wizards are locked until it ends.
         </v-alert>
 
-        <v-row v-if="active">
-            <!-- steps and settings -->
-            <v-col class="col-12 col-lg-5">
-                <div class="cxm-wiz-panel">
-                    <div class="cxm-wiz-head">
-                        <v-icon class="mr-2">{{ active.icon }}</v-icon>
-                        <div>
-                            <div class="cxm-wiz-head-title">{{ active.title }}</div>
-                            <div class="cxm-wiz-sub">{{ active.subtitle }}</div>
+        <template v-if="active">
+            <!-- the wizard, its settings and its steps, across the top -->
+            <div class="cxm-wiz-panel mb-3">
+                <div class="cxm-wiz-head">
+                    <v-icon class="mr-2">{{ active.icon }}</v-icon>
+                    <div>
+                        <div class="cxm-wiz-head-title">{{ active.title }}</div>
+                        <div class="cxm-wiz-sub">{{ active.subtitle }}</div>
+                    </div>
+                </div>
+
+                <div v-if="needsTool" class="cxm-wiz-opts">
+                    <span class="cxm-wiz-opt-lbl">Hotend</span>
+                    <button
+                        v-for="n in toolNumbers"
+                        :key="n"
+                        type="button"
+                        :class="['cxm-chip', { 'cxm-chip-on': tool === n }]"
+                        @click="setTool(n)">
+                        <span class="cxm-chip-dot" :style="{ background: colors[n] }" />
+                        T{{ n }}
+                    </button>
+                </div>
+                <div v-if="wizard === 'dock'" class="cxm-wiz-opts">
+                    <v-text-field
+                        v-model="dockX"
+                        label="Dock X (mm)"
+                        outlined
+                        dense
+                        hide-details
+                        class="cxm-wiz-field"
+                        :placeholder="savedDockX" />
+                    <span class="cxm-wiz-sub ml-3">roughly where the dock is; you jog in from there</span>
+                </div>
+                <div v-if="wizard === 'test'" class="cxm-wiz-opts">
+                    <span class="cxm-wiz-opt-lbl">Hotends</span>
+                    <button
+                        v-for="n in toolNumbers"
+                        :key="n"
+                        type="button"
+                        :class="['cxm-chip', { 'cxm-chip-on': testTools.includes(n) }]"
+                        @click="toggleTestTool(n)">
+                        <span class="cxm-chip-dot" :style="{ background: colors[n] }" />
+                        T{{ n }}
+                    </button>
+                    <v-text-field
+                        v-model="cycles"
+                        label="Cycles"
+                        outlined
+                        dense
+                        hide-details
+                        class="cxm-wiz-field ml-2" />
+                </div>
+                <div v-if="wizard === 'camera'" class="cxm-wiz-opts">
+                    <span class="cxm-wiz-opt-lbl">Align</span>
+                    <button
+                        v-for="n in camCandidates"
+                        :key="n"
+                        type="button"
+                        :class="['cxm-chip', { 'cxm-chip-on': camTools.includes(n) }]"
+                        @click="toggleCamTool(n)">
+                        <span class="cxm-chip-dot" :style="{ background: colors[n] }" />
+                        T{{ n }}
+                    </button>
+                </div>
+                <div v-if="wizard === 'pid'" class="cxm-wiz-opts">
+                    <span class="cxm-wiz-opt-lbl">Heater</span>
+                    <button
+                        v-for="heater in wiredHeaters"
+                        :key="heater.name"
+                        type="button"
+                        :class="['cxm-chip', { 'cxm-chip-on': pidHeater === heater.name }]"
+                        @click="setPidHeater(heater.name)">
+                        {{ heater.label }}
+                    </button>
+                    <v-text-field
+                        v-model="pidTarget"
+                        label="Target °C"
+                        outlined
+                        dense
+                        hide-details
+                        class="cxm-wiz-field ml-2" />
+                </div>
+
+                <div v-if="unavailable" class="cxm-wiz-empty">{{ unavailable }}</div>
+                <div v-else class="cxm-steps">
+                    <div
+                        v-for="(item, index) in steps"
+                        :key="index"
+                        :class="['cxm-step', { 'cxm-step-on': index === step, 'cxm-step-done': index < step }]"
+                        @click="step = index">
+                        <span class="cxm-step-n">{{ index < step ? '✓' : index + 1 }}</span>
+                        <div class="cxm-step-text">
+                            <div class="cxm-step-title">{{ item.title }}</div>
+                            <div class="cxm-step-cmd">{{ item.command || 'you do this by hand' }}</div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <div v-if="needsTool" class="cxm-wiz-opts">
-                        <span class="cxm-wiz-opt-lbl">Hotend</span>
-                        <button
-                            v-for="n in toolNumbers"
-                            :key="n"
-                            type="button"
-                            :class="['cxm-chip', { 'cxm-chip-on': tool === n }]"
-                            @click="setTool(n)">
-                            <span class="cxm-chip-dot" :style="{ background: colors[n] }" />
-                            T{{ n }}
-                        </button>
-                    </div>
-                    <div v-if="wizard === 'dock'" class="cxm-wiz-opts">
-                        <v-text-field
-                            v-model="dockX"
-                            label="Dock X (mm)"
-                            outlined
-                            dense
-                            hide-details
-                            class="cxm-wiz-field"
-                            :placeholder="savedDockX" />
-                        <span class="cxm-wiz-sub ml-3">roughly where the dock is; you jog in from there</span>
-                    </div>
-                    <div v-if="wizard === 'test'" class="cxm-wiz-opts">
-                        <span class="cxm-wiz-opt-lbl">Hotends</span>
-                        <button
-                            v-for="n in toolNumbers"
-                            :key="n"
-                            type="button"
-                            :class="['cxm-chip', { 'cxm-chip-on': testTools.includes(n) }]"
-                            @click="toggleTestTool(n)">
-                            <span class="cxm-chip-dot" :style="{ background: colors[n] }" />
-                            T{{ n }}
-                        </button>
-                        <v-text-field
-                            v-model="cycles"
-                            label="Cycles"
-                            outlined
-                            dense
-                            hide-details
-                            class="cxm-wiz-field ml-2" />
-                    </div>
-                    <div v-if="wizard === 'camera'" class="cxm-wiz-opts">
-                        <span class="cxm-wiz-opt-lbl">Align</span>
-                        <button
-                            v-for="n in camCandidates"
-                            :key="n"
-                            type="button"
-                            :class="['cxm-chip', { 'cxm-chip-on': camTools.includes(n) }]"
-                            @click="toggleCamTool(n)">
-                            <span class="cxm-chip-dot" :style="{ background: colors[n] }" />
-                            T{{ n }}
-                        </button>
-                    </div>
-                    <div v-if="wizard === 'pid'" class="cxm-wiz-opts">
-                        <span class="cxm-wiz-opt-lbl">Heater</span>
-                        <button
-                            v-for="heater in wiredHeaters"
-                            :key="heater.name"
-                            type="button"
-                            :class="['cxm-chip', { 'cxm-chip-on': pidHeater === heater.name }]"
-                            @click="setPidHeater(heater.name)">
-                            {{ heater.label }}
-                        </button>
-                        <v-text-field
-                            v-model="pidTarget"
-                            label="Target °C"
-                            outlined
-                            dense
-                            hide-details
-                            class="cxm-wiz-field ml-2" />
-                    </div>
-
-                    <div v-if="unavailable" class="cxm-wiz-empty">{{ unavailable }}</div>
-                    <template v-else>
-                        <div
-                            v-for="(item, index) in steps"
-                            :key="index"
-                            :class="['cxm-step', { 'cxm-step-on': index === step, 'cxm-step-done': index < step }]"
-                            @click="step = index">
-                            <span class="cxm-step-n">{{ index < step ? '✓' : index + 1 }}</span>
-                            <div class="cxm-step-text">
-                                <div class="cxm-step-title">{{ item.title }}</div>
-                                <div class="cxm-step-cmd">{{ item.command || 'you do this by hand' }}</div>
-                            </div>
-                        </div>
+            <!-- below: the panels this step needs on the left, its picture and controls on the right -->
+            <v-row v-if="current">
+                <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
+                    <template v-for="part in current.panels">
+                        <panel
+                            v-if="part === 'nozzle'"
+                            :key="part"
+                            :icon="mdiWebcam"
+                            title="Nozzle camera"
+                            card-class="cxm-wiz-cam"
+                            :collapsible="false">
+                            <webcam-wrapper v-if="nozzleCam" :webcam="nozzleCam" page="cxm-wizards" />
+                            <v-card-text v-else class="text--disabled">No camera set up yet.</v-card-text>
+                        </panel>
+                        <toolhead-control-panel v-else-if="part === 'toolhead'" :key="part" />
+                        <miniconsole-panel v-else-if="part === 'console'" :key="part" />
                     </template>
-                </div>
-            </v-col>
-
-            <!-- the picture of this step, its controls and the panels it needs -->
-            <v-col v-if="current" class="col-12 col-lg-7">
-                <div class="cxm-wiz-panel pa-3">
-                    <cxm-wizard-graphic :scene="current.scene" :tool-numbers="toolNumbers" :colors="colors" />
-                    <p class="cxm-wiz-caption">{{ current.caption }}</p>
-                    <div v-if="current.command" class="cxm-preview mb-3">
-                        <small>WILL SEND</small>
-                        <code>{{ current.command }}</code>
+                </v-col>
+                <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
+                    <div class="cxm-wiz-panel cxm-wiz-picture pa-3 mb-3 mb-md-6">
+                        <cxm-wizard-graphic :scene="current.scene" :tool-numbers="toolNumbers" :colors="colors" />
+                        <p class="cxm-wiz-caption">{{ current.caption }}</p>
+                        <div v-if="current.command" class="cxm-preview mb-3">
+                            <small>WILL SEND</small>
+                            <code>{{ current.command }}</code>
+                        </div>
+                        <div class="d-flex align-center">
+                            <span v-if="current.warning" class="cxm-wiz-warn">{{ current.warning }}</span>
+                            <v-spacer />
+                            <button v-if="step > 0" type="button" class="cxm-btn mr-2" @click="step--">Back</button>
+                            <button
+                                v-if="current.stop"
+                                type="button"
+                                class="cxm-btn mr-2"
+                                :disabled="!macroExists(current.stop)"
+                                @click="send(current.stop)">
+                                Stop
+                            </button>
+                            <button
+                                type="button"
+                                class="cxm-btn cxm-btn-main"
+                                :disabled="printing || (current.command !== '' && !current.ready)"
+                                @click="runStep">
+                                {{ current.command ? 'Run step' : 'Done, next' }}
+                            </button>
+                        </div>
+                        <div v-if="current.command && !current.ready" class="cxm-wiz-warn mt-2">
+                            {{ current.notReady }}
+                        </div>
+                        <div v-if="step >= steps.length - 1 && finished" class="cxm-wiz-done mt-3">
+                            ✓ {{ active.title }} finished{{ active.next ? ' · next: ' + titleOf(active.next) : '' }}
+                        </div>
                     </div>
-                    <div class="d-flex align-center">
-                        <span v-if="current.warning" class="cxm-wiz-warn">{{ current.warning }}</span>
-                        <v-spacer />
-                        <button v-if="step > 0" type="button" class="cxm-btn mr-2" @click="step--">Back</button>
-                        <button
-                            v-if="current.stop"
-                            type="button"
-                            class="cxm-btn mr-2"
-                            :disabled="!macroExists(current.stop)"
-                            @click="send(current.stop)">
-                            Stop
-                        </button>
-                        <button
-                            type="button"
-                            class="cxm-btn cxm-btn-main"
-                            :disabled="printing || (current.command !== '' && !current.ready)"
-                            @click="runStep">
-                            {{ current.command ? 'Run step' : 'Done, next' }}
-                        </button>
-                    </div>
-                    <div v-if="current.command && !current.ready" class="cxm-wiz-warn mt-2">
-                        {{ current.notReady }}
-                    </div>
-                    <div v-if="step >= steps.length - 1 && finished" class="cxm-wiz-done mt-3">
-                        ✓ {{ active.title }} finished{{ active.next ? ' · next: ' + titleOf(active.next) : '' }}
-                    </div>
-                </div>
-
-                <template v-for="part in current.panels">
-                    <panel
-                        v-if="part === 'nozzle'"
-                        :key="part"
-                        :icon="mdiWebcam"
-                        title="Nozzle camera"
-                        card-class="cxm-wiz-cam"
-                        :collapsible="false">
-                        <webcam-wrapper v-if="nozzleCam" :webcam="nozzleCam" page="cxm-wizards" />
-                        <v-card-text v-else class="text--disabled">No camera set up yet.</v-card-text>
-                    </panel>
-                    <toolhead-control-panel v-else-if="part === 'toolhead'" :key="part" />
-                    <miniconsole-panel v-else-if="part === 'console'" :key="part" />
-                </template>
-            </v-col>
-        </v-row>
+                </v-col>
+            </v-row>
+        </template>
     </div>
 </template>
 
@@ -668,6 +669,12 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     margin-bottom: 12px;
 }
 
+.cxm-wiz-picture {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
 .cxm-wiz-head {
     display: flex;
     align-items: center;
@@ -746,12 +753,18 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     color: #8a94a8;
 }
 
+.cxm-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    border-top: 1px solid #1d2433;
+}
+
 .cxm-step {
     display: flex;
     align-items: flex-start;
     gap: 10px;
     padding: 10px 14px;
-    border-top: 1px solid #1d2433;
+    border-right: 1px solid #1d2433;
     cursor: pointer;
 }
 

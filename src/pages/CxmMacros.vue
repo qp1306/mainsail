@@ -635,8 +635,8 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         const keep = (parts: string[]) => parts.filter((part) => part !== 'chamber' || this.chamberCam !== null)
 
         return [
-            { cls: 'col-12 col-lg-7', parts: keep(this.activeJob.left) },
-            { cls: 'col-12 col-lg-5', parts: keep(this.activeJob.right) },
+            { cls: 'col-12 col-lg-7 d-flex flex-column cxm-fill-last', parts: keep(this.activeJob.left) },
+            { cls: 'col-12 col-lg-5 d-flex flex-column cxm-fill-last', parts: keep(this.activeJob.right) },
         ]
     }
 
