@@ -61,7 +61,23 @@
                         <span class="cxm-wiz-sub ml-3">roughly where the dock is; you jog in from there</span>
                     </div>
                     <div v-if="wizard === 'test'" class="cxm-wiz-opts">
-                        <v-text-field v-model="cycles" label="Cycles" outlined dense hide-details class="cxm-wiz-field" />
+                        <span class="cxm-wiz-opt-lbl">Hotends</span>
+                        <button
+                            v-for="n in toolNumbers"
+                            :key="n"
+                            type="button"
+                            :class="['cxm-chip', { 'cxm-chip-on': testTools.includes(n) }]"
+                            @click="toggleTestTool(n)">
+                            <span class="cxm-chip-dot" :style="{ background: colors[n] }" />
+                            T{{ n }}
+                        </button>
+                        <v-text-field
+                            v-model="cycles"
+                            label="Cycles"
+                            outlined
+                            dense
+                            hide-details
+                            class="cxm-wiz-field ml-2" />
                     </div>
                     <div v-if="wizard === 'camera'" class="cxm-wiz-opts">
                         <span class="cxm-wiz-opt-lbl">Align</span>
@@ -237,6 +253,7 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     dockX = ''
     cycles = '5'
     camPicked: number[] | null = null // null: every enabled hotend
+    testPicked: number[] | null = null // null: every enabled hotend
     pidHeater = 'extruder'
     pidTarget = '220'
 
@@ -276,8 +293,12 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
         return this.camPicked ?? this.cxmTools.filter((t) => t.n !== 0 && t.enabled).map((t) => t.n)
     }
 
+    get testTools(): number[] {
+        return this.testPicked ?? this.cxmTools.filter((t) => t.enabled).map((t) => t.n)
+    }
+
     get needsTool(): boolean {
-        return ['dock', 'test'].includes(this.wizard)
+        return this.wizard === 'dock'
     }
 
     get savedDockX(): string {
@@ -363,14 +384,18 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
             }
             case 'test': {
                 const cycles = parseInt(this.cycles) || 5
+                const tools = this.toolNumbers.filter((t) => this.testTools.includes(t))
+                const names = tools.map((t) => 'T' + t).join(', ')
                 return [
                     {
-                        title: `Pick up and drop off T${n}`,
-                        command: `CXM_TEST TOOLS=${n} CYCLES=${cycles}`,
-                        caption: `T${n} is picked up and parked ${cycles} times. Watch the latch every time.`,
-                        scene: { kind: 'cycle', tool: n },
+                        title: `Pick up and drop off ${names || '…'}`,
+                        command: `CXM_TEST TOOLS=${tools.join(',')} CYCLES=${cycles}`,
+                        caption: `${names || 'Each hotend'} is picked up and parked ${cycles} times, one after another. Watch the latch every time.`,
+                        scene: { kind: 'cycle', tool: tools[0] ?? 0 },
                         panels: ['console'],
                         stop: 'CXM_TEST_STOP',
+                        ready: tools.length > 0,
+                        notReady: 'Pick at least one hotend.',
                     },
                 ]
             }
@@ -437,6 +462,15 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
                         scene: { kind: 'touch', tool: 1, note: '5 touches each' },
                         panels: ['console'],
                         warning: 'Hotends get hot.',
+                    },
+                    {
+                        title: 'Global Z from T0 (optional)',
+                        command: 'CXM_AUTO_GLOBAL_Z APPLY=1',
+                        caption:
+                            'Sets the first-layer height from one warm T0 touch and saves it. PRINT_START does this for you, so only run it by hand after changing the bed or probe.',
+                        scene: { kind: 'touch', tool: 0, note: '1 warm T0 touch' },
+                        panels: ['console'],
+                        warning: 'T0 gets hot.',
                     },
                 ]
             case 'pid': {
@@ -520,6 +554,12 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     setPidHeater(name: string) {
         this.pidHeater = name
         this.pidTarget = name === 'heater_bed' ? '60' : '220'
+        this.reset()
+    }
+
+    toggleTestTool(n: number) {
+        const picked = this.testTools
+        this.testPicked = picked.includes(n) ? picked.filter((t) => t !== n) : [...picked, n]
         this.reset()
     }
 

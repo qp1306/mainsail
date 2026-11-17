@@ -95,6 +95,10 @@
                         </div>
                     </div>
                     <div class="cxm-jobs">
+                        <router-link v-if="lane.id === 'setup'" to="/cxm/wizards" class="cxm-job cxm-job-link">
+                            <v-icon small class="mr-1">{{ mdiAutoFix }}</v-icon>
+                            Open the wizards →
+                        </router-link>
                         <button
                             v-for="item in lane.jobs"
                             :key="item.id"
@@ -113,7 +117,14 @@
         <v-row v-if="!activeJob">
             <v-col v-for="lane in lanes" :key="lane.id" class="col-12 col-lg-4">
                 <div class="cxm-lane">
-                    <div v-if="lane.rows.length === 0" class="cxm-empty">{{ search ? 'No match' : 'Nothing here' }}</div>
+                    <div v-if="lane.id === 'setup'" class="cxm-empty">
+                        Docks, pick-up test, camera and Z are on the
+                        <router-link to="/cxm/wizards">Wizards</router-link>
+                        page, step by step.
+                    </div>
+                    <div v-else-if="lane.rows.length === 0" class="cxm-empty">
+                        {{ search ? 'No match' : 'Nothing here' }}
+                    </div>
                     <div
                         v-for="row in lane.rows"
                         :key="row.key"
@@ -300,12 +311,10 @@ import CxmGantryPanel from '@/components/panels/Cxm/CxmGantryPanel.vue'
 import { PrinterStateMacro } from '@/store/printer/types'
 import { GuiWebcamStateWebcam } from '@/store/gui/webcams/types'
 import {
-    mdiAxisArrow,
-    mdiCameraOutline,
     mdiClose,
+    mdiAutoFix,
     mdiCodeBraces,
     mdiConsoleLine,
-    mdiFlaskOutline,
     mdiFormatListChecks,
     mdiMagnify,
     mdiPlay,
@@ -314,7 +323,6 @@ import {
     mdiStarOutline,
     mdiTools,
     mdiViewGridOutline,
-    mdiWarehouse,
     mdiWebcam,
 } from '@mdi/js'
 
@@ -380,51 +388,6 @@ const LANES = [
 // panels: steps, nozzle, chamber, toolhead, console, gantry, status
 const JOBS: Job[] = [
     {
-        id: 'cam',
-        lane: 'setup',
-        title: 'Camera align',
-        subtitle: 'Centre each nozzle over the camera',
-        icon: mdiCameraOutline,
-        left: ['nozzle'],
-        right: ['steps', 'toolhead'],
-    },
-    {
-        id: 'docks',
-        lane: 'setup',
-        title: 'Docks',
-        subtitle: 'Teach and check the dock positions',
-        icon: mdiWarehouse,
-        left: ['gantry'],
-        right: ['steps', 'toolhead'],
-    },
-    {
-        id: 'z',
-        lane: 'setup',
-        title: 'Z calibrate',
-        subtitle: 'Hotend heights; results print in the console',
-        icon: mdiAxisArrow,
-        left: ['console', 'toolhead'],
-        right: ['steps'],
-    },
-    {
-        id: 'tests',
-        lane: 'setup',
-        title: 'Tests',
-        subtitle: 'Repeat pick-up and drop-off',
-        icon: mdiFlaskOutline,
-        left: ['gantry'],
-        right: ['steps', 'console'],
-    },
-    {
-        id: 'setup-more',
-        lane: 'setup',
-        title: 'More',
-        subtitle: 'Offsets, enabling hotends and other set-up',
-        icon: mdiTools,
-        left: ['steps'],
-        right: ['console'],
-    },
-    {
         id: 'print',
         lane: 'print',
         title: 'Print',
@@ -443,6 +406,15 @@ const JOBS: Job[] = [
         right: ['steps', 'gantry'],
     },
     {
+        id: 'hotend',
+        lane: 'fix',
+        title: 'Hotend settings',
+        subtitle: 'Switch hotends on or off and type in offsets by hand',
+        icon: mdiTools,
+        left: ['steps'],
+        right: ['console'],
+    },
+    {
         id: 'other',
         lane: 'other',
         title: 'Other',
@@ -455,6 +427,10 @@ const JOBS: Job[] = [
 
 // shown on the hotend tiles, not as rows
 const TILE_MACROS = /^(T\d+|AXT\d+|CXM_CAM_GOTO|CXM_UNLOAD)$/
+
+// run from the Wizards page, not listed here
+const WIZARD_MACROS =
+    /^CXM_(DOCK_GOTO|DOCK_SAVE|TEST|TEST_STOP|CAM_SAVE|CAM_VERIFY|Z_CALIBRATE|Z_VERIFY|AUTO_GLOBAL_Z)$/
 
 const Z_NUDGE: [string, string][] = [
     ['CXM_Z_MINUS_050', '−.05'],
@@ -487,7 +463,7 @@ function laneOf(name: string): string {
     if (/^CXM_(STATUS|HELP|SET_TOOL|RESUME|SETTINGS|CHANGE)$/.test(name)) return 'fix'
     if (
         ['PRINT_START', 'PRINT_END', 'PAUSE', 'RESUME', 'CANCEL_PRINT'].includes(name) ||
-        /^CXM_(PRINT_|Z_PLUS|Z_MINUS|Z_TRIMS|DRY_RUN|NO_PAUSE)/.test(name)
+        /^CXM_(PRINT_|Z_PLUS|Z_MINUS|Z_TRIMS|DRY_RUN|NO_PAUSE|SAVE_Z_BIAS)/.test(name)
     )
         return 'print'
     if (name.startsWith('CXM')) return 'setup'
@@ -495,16 +471,11 @@ function laneOf(name: string): string {
     return 'other'
 }
 
+// set-up macros the wizards don't cover (offsets, enabling hotends) go to Hotend settings
 function jobOf(name: string): string {
-    if (name.startsWith('CXM_CAM_')) return 'cam'
-    if (name.startsWith('CXM_DOCK_')) return 'docks'
-    if (/^CXM_(AUTO_GLOBAL_Z|Z_CALIBRATE|Z_VERIFY|SAVE_Z_BIAS)/.test(name)) return 'z'
-    if (name.startsWith('CXM_TEST')) return 'tests'
-
     const lane = laneOf(name)
-    if (lane === 'setup') return 'setup-more'
 
-    return lane
+    return lane === 'setup' ? 'hotend' : lane
 }
 
 @Component({
@@ -519,6 +490,7 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     mdiStarOutline = mdiStarOutline
     mdiViewGridOutline = mdiViewGridOutline
     mdiWebcam = mdiWebcam
+    mdiAutoFix = mdiAutoFix
 
     search = ''
     favourites: string[] = loadList(FAV_KEY)
@@ -648,7 +620,7 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
 
         this.macros.forEach((macro) => {
             const upper = macro.name.toUpperCase()
-            if (TILE_MACROS.test(upper) || zNudgeNames.includes(upper)) return
+            if (TILE_MACROS.test(upper) || WIZARD_MACROS.test(upper) || zNudgeNames.includes(upper)) return
             rows[jobOf(upper)].push(this.makeRow(macro))
         })
         if (this.zNudgeRow) rows.print.push(this.zNudgeRow)
@@ -1035,6 +1007,14 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
 
 .cxm-job:hover {
     border-color: rgba(255, 138, 31, 0.7);
+}
+
+.cxm-job-link {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    border-color: rgba(255, 138, 31, 0.6);
+    color: #ffb35c !important;
 }
 
 .cxm-job-on {
