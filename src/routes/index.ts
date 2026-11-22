@@ -63,7 +63,7 @@ const routes: AppRoute[] = [
         icon: mdiMonitorDashboard,
         component: Dashboard,
         alwaysShow: true,
-        showInNavi: true,
+        showInNavi: false, // CXM: hidden from the side menu
         position: 10,
     },
     {
@@ -81,7 +81,7 @@ const routes: AppRoute[] = [
         icon: mdiWebcam,
         component: Webcam,
         alwaysShow: true,
-        showInNavi: true,
+        showInNavi: false, // CXM: hidden from the side menu
         position: 20,
         fullscreen: true,
     },
@@ -92,7 +92,7 @@ const routes: AppRoute[] = [
         icon: mdiConsoleLine,
         component: Console,
         alwaysShow: true,
-        showInNavi: true,
+        showInNavi: false, // CXM: hidden from the side menu
         klipperIsConnected: true,
         position: 30,
     },
@@ -103,7 +103,7 @@ const routes: AppRoute[] = [
         icon: mdiGrid,
         component: () => import('../pages/Heightmap.vue'),
         alwaysShow: false,
-        showInNavi: true,
+        showInNavi: false, // CXM: hidden from the side menu
         klipperComponent: 'bed_mesh',
         position: 40,
     },
