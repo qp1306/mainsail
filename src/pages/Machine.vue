@@ -3,11 +3,7 @@
         <v-row>
             <v-col class="col-12 col-md-6 pb-0 pb-md-3">
                 <config-files-panel></config-files-panel>
-            </v-col>
-            <v-col class="col-12 col-md-6 pt-0 pt-md-3">
-                <klippy-state-panel></klippy-state-panel>
-                <system-panel></system-panel>
-                <update-panel></update-panel>
+                <!-- CXM: endstops and log files under the config files, filling the left column -->
                 <v-row>
                     <v-col v-if="klipperState === 'ready'" class="col-12 col-sm-6 pb-0 pb-md-3">
                         <endstop-panel></endstop-panel>
@@ -16,6 +12,11 @@
                         <logfiles-panel></logfiles-panel>
                     </v-col>
                 </v-row>
+            </v-col>
+            <v-col class="col-12 col-md-6 pt-0 pt-md-3">
+                <klippy-state-panel></klippy-state-panel>
+                <system-panel></system-panel>
+                <update-panel></update-panel>
             </v-col>
         </v-row>
     </v-container>
