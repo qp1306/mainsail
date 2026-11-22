@@ -15,15 +15,19 @@
         <page-console v-else-if="shownTab === 'console'" class="cxm-tab-console" />
         <page-machine v-else-if="shownTab === 'machine'" />
 
-        <v-row v-else-if="shownTab === 'control'">
-            <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
-                <extruder-control-panel />
-            </v-col>
-            <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
-                <miscellaneous-panel />
-                <machine-settings-panel />
-            </v-col>
-        </v-row>
+        <div v-else-if="shownTab === 'control'">
+            <cxm-hotend-tiles class="mb-4" />
+            <v-row>
+                <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
+                    <miscellaneous-panel />
+                </v-col>
+                <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
+                    <machine-settings-panel />
+                </v-col>
+            </v-row>
+            <!-- shows once the hotends are wired -->
+            <extruder-control-panel />
+        </div>
 
         <v-row v-else>
             <v-col class="col-12 col-lg-7 d-flex flex-column cxm-fill-last">
@@ -49,6 +53,7 @@ import Component from 'vue-class-component'
 import { Mixins, Watch } from 'vue-property-decorator'
 import BaseMixin from '@/components/mixins/base'
 import CxmRecovery from '@/components/cxm/CxmRecovery.vue'
+import CxmHotendTiles from '@/components/cxm/CxmHotendTiles.vue'
 import { cxmRecovery } from '@/components/cxm/recoveryStore'
 import CxmToolsPanel from '@/components/panels/Cxm/CxmToolsPanel.vue'
 import CxmGantryPanel from '@/components/panels/Cxm/CxmGantryPanel.vue'
@@ -73,6 +78,7 @@ function loadTab(): string {
 @Component({
     components: {
         CxmRecovery,
+        CxmHotendTiles,
         // the full Mainsail Console and Machine pages, loaded only when their tab is opened
         PageConsole: () => import('@/pages/Console.vue'),
         PageMachine: () => import('@/pages/Machine.vue'),

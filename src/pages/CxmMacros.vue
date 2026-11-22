@@ -27,46 +27,7 @@
         </div>
 
         <!-- hotend tiles: one per installed hotend, plus "empty carriage" -->
-        <div v-if="tiles.length" class="cxm-tiles mb-4">
-            <div
-                v-for="tile in tiles"
-                :key="tile.n"
-                :class="[
-                    'cxm-tile',
-                    {
-                        'cxm-tile-on': tile.mounted,
-                        'cxm-tile-off': !tile.enabled,
-                        'cxm-tile-pick': tile.pick && !tile.mounted && !isLocked(tile.pick.name),
-                    },
-                ]"
-                :title="tile.pick && !tile.mounted ? 'Click to pick up T' + tile.n : ''"
-                @click="pickUp(tile)">
-                <div class="d-flex align-center">
-                    <span class="cxm-dot" :style="{ background: tile.color }" />
-                    <span class="cxm-tile-name">T{{ tile.n }}</span>
-                    <span class="cxm-tile-temp">{{ tile.temp }}</span>
-                </div>
-                <div class="cxm-tile-state">{{ tile.state }}</div>
-            </div>
-            <div
-                v-if="unloadMacro"
-                :class="[
-                    'cxm-tile',
-                    'cxm-tile-empty',
-                    {
-                        'cxm-tile-on': cxmTool === -1,
-                        'cxm-tile-pick': cxmTool !== -1 && !isLocked(unloadMacro.name),
-                    },
-                ]"
-                :title="cxmTool !== -1 ? 'Click to put the hotend back in its dock' : ''"
-                @click="unload">
-                <div class="d-flex align-center">
-                    <span class="cxm-dot cxm-dot-empty" />
-                    <span class="cxm-tile-name">EMPTY</span>
-                </div>
-                <div class="cxm-tile-state">{{ cxmTool === -1 ? 'carriage empty' : 'click to dock' }}</div>
-            </div>
-        </div>
+        <cxm-hotend-tiles class="mb-4" />
 
         <v-alert v-if="printing" dense text type="info" class="mb-4">
             A print is running: hotend changes and set-up macros are locked until it ends.
@@ -288,6 +249,7 @@ import ToolheadControlPanel from '@/components/panels/ToolheadControlPanel.vue'
 import MiniconsolePanel from '@/components/panels/MiniconsolePanel.vue'
 import StatusPanel from '@/components/panels/StatusPanel.vue'
 import CxmGantryPanel from '@/components/panels/Cxm/CxmGantryPanel.vue'
+import CxmHotendTiles from '@/components/cxm/CxmHotendTiles.vue'
 import { PrinterStateMacro } from '@/store/printer/types'
 import { GuiWebcamStateWebcam } from '@/store/gui/webcams/types'
 import {
@@ -444,7 +406,15 @@ function jobOf(name: string): string {
 }
 
 @Component({
-    components: { Panel, WebcamWrapper, ToolheadControlPanel, MiniconsolePanel, StatusPanel, CxmGantryPanel },
+    components: {
+        Panel,
+        WebcamWrapper,
+        ToolheadControlPanel,
+        MiniconsolePanel,
+        StatusPanel,
+        CxmGantryPanel,
+        CxmHotendTiles,
+    },
 })
 export default class PageCxmMacros extends Mixins(CxmMixin) {
     mdiClose = mdiClose
@@ -499,29 +469,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     // any other camera, for watching a print
     get chamberCam(): GuiWebcamStateWebcam | null {
         return this.webcams.find((cam) => cam !== this.nozzleCam) ?? null
-    }
-
-    get unloadMacro(): PrinterStateMacro | null {
-        return this.macro('CXM_UNLOAD')
-    }
-
-    get tiles() {
-        return this.cxmTools.map((tool) => {
-            const pick = this.macro('T' + tool.n)
-            const mounted = tool.n === this.cxmTool
-            let state = tool.enabled ? 'in dock' : 'disabled'
-            if (mounted) state = 'on carriage'
-
-            return {
-                n: tool.n,
-                color: tool.color,
-                temp: tool.temp === null ? '' : Math.round(tool.temp) + '°',
-                mounted,
-                enabled: tool.enabled,
-                pick,
-                state,
-            }
-        })
     }
 
     makeRow(macro: PrinterStateMacro): Row {
@@ -710,20 +657,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
         this.dialog = true
     }
 
-    // clicking a hotend tile picks it up straight away (no confirm dialog)
-    pickUp(tile: { pick: PrinterStateMacro | null; mounted: boolean }) {
-        if (!tile.pick || tile.mounted) return
-
-        this.sendNow(tile.pick)
-    }
-
-    // clicking the EMPTY tile docks the hotend straight away (no confirm dialog)
-    unload() {
-        if (!this.unloadMacro || this.cxmTool === -1) return
-
-        this.sendNow(this.unloadMacro)
-    }
-
     sendNow(macro: PrinterStateMacro) {
         if (this.isLocked(macro.name)) return
 
@@ -775,83 +708,6 @@ export default class PageCxmMacros extends Mixins(CxmMixin) {
     border-radius: 5px;
     opacity: 0.7;
     margin-top: 2px;
-}
-
-/* hotend tiles */
-.cxm-tiles {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    grid-gap: 10px;
-}
-
-.cxm-tile {
-    padding: 10px 12px;
-    border-radius: 12px;
-    border: 1px solid #263045;
-    background: #161d2a;
-}
-
-.cxm-tile-pick {
-    cursor: pointer;
-    transition:
-        border-color 0.15s,
-        box-shadow 0.15s;
-}
-
-.cxm-tile-pick:hover {
-    border-color: rgba(255, 138, 31, 0.7);
-    box-shadow: 0 0 16px -8px rgba(255, 138, 31, 0.9);
-}
-
-.cxm-tile-on {
-    border-color: #ff8a1f;
-    box-shadow: 0 0 18px -8px rgba(255, 138, 31, 0.9);
-}
-
-.cxm-tile-off {
-    opacity: 0.5;
-}
-
-.cxm-dot {
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    margin-right: 8px;
-    flex-shrink: 0;
-}
-
-.cxm-dot-empty {
-    background: transparent;
-    border-style: dashed;
-}
-
-.cxm-tile-name {
-    font-family: 'Rajdhani', 'Avenir Next Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 1px;
-}
-
-.cxm-tile-temp {
-    margin-left: auto;
-    font-family: 'Rajdhani', 'Avenir Next Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
-    font-size: 17px;
-    font-weight: 700;
-    color: #8a94a8;
-}
-
-.cxm-tile-state {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: #8a94a8;
-    margin: 2px 0 8px;
-}
-
-.cxm-tile-on .cxm-tile-state {
-    color: #ff8a1f;
 }
 
 .cxm-run {
