@@ -159,7 +159,7 @@ const routes: AppRoute[] = [
         icon: mdiWrench,
         component: Machine,
         alwaysShow: true,
-        showInNavi: true,
+        showInNavi: false, // CXM: a tab on the Cockpit instead
         position: 7.8,
     },
     {

@@ -130,14 +130,14 @@ export default class TheSidebar extends Mixins(NavigationMixin, BaseMixin, Theme
     }
 
     // CXM: "CXM" / "MAINSAIL" headings above the first entry of each group.
-    // Files, Viewer, History and Machine sit in the CXM group, under Wizards.
+    // Files, Viewer and History sit in the CXM group, under Wizards.
     isCxmPoint(point: NaviPoint): boolean {
         const to = point.to ?? ''
 
         return (
             to.startsWith('/cockpit') ||
             to.startsWith('/cxm/') ||
-            ['/files', '/viewer', '/history', '/config'].includes(to)
+            ['/files', '/viewer', '/history'].includes(to)
         )
     }
 
