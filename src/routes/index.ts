@@ -116,7 +116,7 @@ const routes: AppRoute[] = [
         alwaysShow: true,
         showInNavi: true,
         registeredDirectory: 'gcodes',
-        position: 50,
+        position: 7.2,
         fullscreen: true,
     },
     {
@@ -127,7 +127,7 @@ const routes: AppRoute[] = [
         component: () => import('../pages/Viewer.vue'),
         alwaysShow: true,
         showInNavi: true,
-        position: 60,
+        position: 7.4,
         fullscreen: true,
     },
     {
@@ -139,7 +139,7 @@ const routes: AppRoute[] = [
         alwaysShow: true,
         showInNavi: true,
         moonrakerComponent: 'history',
-        position: 70,
+        position: 7.6,
     },
     {
         name: 'timelapse',
@@ -160,7 +160,7 @@ const routes: AppRoute[] = [
         component: Machine,
         alwaysShow: true,
         showInNavi: true,
-        position: 90,
+        position: 7.8,
     },
     {
         title: null,
