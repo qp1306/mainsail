@@ -12,14 +12,7 @@
         </div>
 
         <cxm-recovery v-if="shownTab === 'recovery'" />
-        <page-macros v-else-if="shownTab === 'macros'" />
-        <page-wizards v-else-if="shownTab === 'wizards'" />
-        <page-files v-else-if="shownTab === 'files'" />
-        <page-viewer v-else-if="shownTab === 'viewer'" />
-        <page-history v-else-if="shownTab === 'history'" />
         <page-console v-else-if="shownTab === 'console'" class="cxm-tab-console" />
-        <page-heightmap v-else-if="shownTab === 'heightmap'" />
-        <page-machine v-else-if="shownTab === 'machine'" />
 
         <v-row v-else-if="shownTab === 'control'">
             <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
@@ -79,15 +72,8 @@ function loadTab(): string {
 @Component({
     components: {
         CxmRecovery,
-        // the full Mainsail pages, loaded only when their tab is opened
-        PageMacros: () => import('@/pages/CxmMacros.vue'),
-        PageWizards: () => import('@/pages/CxmWizards.vue'),
-        PageFiles: () => import('@/pages/Files.vue'),
-        PageViewer: () => import('@/pages/Viewer.vue'),
-        PageHistory: () => import('@/pages/History.vue'),
+        // the full Mainsail Console page, loaded only when its tab is opened
         PageConsole: () => import('@/pages/Console.vue'),
-        PageHeightmap: () => import('@/pages/Heightmap.vue'),
-        PageMachine: () => import('@/pages/Machine.vue'),
         CxmToolsPanel,
         CxmGantryPanel,
         StatusPanel,
@@ -104,14 +90,7 @@ export default class PageCockpit extends Mixins(BaseMixin) {
         const tabs = [
             { id: 'cockpit', title: 'Cockpit' },
             { id: 'control', title: 'Control' },
-            { id: 'macros', title: 'Macros' },
-            { id: 'wizards', title: 'Wizards' },
-            { id: 'files', title: 'G-code files' },
-            { id: 'viewer', title: 'G-code viewer' },
-            { id: 'history', title: 'History' },
             { id: 'console', title: 'Console' },
-            { id: 'heightmap', title: 'Heightmap' },
-            { id: 'machine', title: 'Machine' },
         ]
         if (cxmRecovery.open) tabs.push({ id: 'recovery', title: 'Recovery' })
 
@@ -164,9 +143,9 @@ export default class PageCockpit extends Mixins(BaseMixin) {
 }
 
 .cxm-tab {
-    padding: 8px 12px 10px;
+    padding: 8px 18px 10px;
     font-family: 'Rajdhani', 'Avenir Next Condensed', 'Barlow Condensed', 'Arial Narrow', sans-serif;
-    font-size: 17px;
+    font-size: 20px;
     white-space: nowrap;
     flex-shrink: 0;
     font-weight: 700;
