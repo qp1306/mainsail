@@ -17,7 +17,18 @@
                     rx="8"
                     class="cxm-area" />
                 <text :x="pad + 8" :y="pad + 16" class="cxm-lbl">BACK OF PRINTER</text>
-                <text :x="pad + 8" :y="pad + lim.y1 - lim.y0 - 8" class="cxm-lbl">FRONT · DOOR</text>
+                <text :x="pad + 8" :y="height - 6" class="cxm-lbl">FRONT · DOOR</text>
+
+                <!-- bed mesh area and QGL probe points, from [bed_mesh] / [quad_gantry_level] -->
+                <template v-if="mesh">
+                    <rect :x="mesh.x" :y="mesh.y" :width="mesh.w" :height="mesh.h" rx="4" class="cxm-mesh" />
+                    <text :x="mesh.x + 6" :y="mesh.y + 14" class="cxm-mesh-lbl">{{ mesh.label }}</text>
+                </template>
+                <g v-for="(point, index) in qglPoints" :key="'qgl' + index" :transform="'translate(' + point.x + ',' + point.y + ')'">
+                    <circle r="5" class="cxm-qgl" />
+                    <path d="M-8 0 H8 M0 -8 V8" class="cxm-qgl-cross" />
+                </g>
+                <text v-if="qglPoints.length" :x="qglLabel.x" :y="qglLabel.y" class="cxm-qgl-lbl">QGL</text>
 
                 <!-- dock safe line -->
                 <template v-if="safeY !== null">
@@ -102,9 +113,54 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
         return this.lim.x1 - this.lim.x0 + this.pad * 2
     }
 
-    // extra room at the bottom for the dock labels
+    // extra room at the bottom for the dock labels and the FRONT label under them
     get height(): number {
-        return this.lim.y1 - this.lim.y0 + this.pad * 2 + 40
+        return this.lim.y1 - this.lim.y0 + this.pad * 2 + 54
+    }
+
+    get settings(): Record<string, any> {
+        return this.$store.state.printer.configfile?.settings ?? {}
+    }
+
+    // Klipper reports "70, 130" as [70, 130]; older versions may give the raw text
+    numbers(value: unknown): number[] {
+        if (Array.isArray(value)) return value.flat(2).map((v) => parseFloat(v))
+        if (typeof value === 'string') return value.split(/[\s,]+/).filter((v) => v !== '').map(parseFloat)
+
+        return []
+    }
+
+    get mesh(): { x: number; y: number; w: number; h: number; label: string } | null {
+        const bedMesh = this.settings.bed_mesh
+        const min = this.numbers(bedMesh?.mesh_min)
+        const max = this.numbers(bedMesh?.mesh_max)
+        if (min.length < 2 || max.length < 2 || min.some(isNaN) || max.some(isNaN)) return null
+
+        const [x0, y0] = this.toSvg(min[0], max[1])
+        const [x1, y1] = this.toSvg(max[0], min[1])
+        const count = this.numbers(bedMesh?.probe_count)
+        const label = count.length ? 'BED MESH ' + count[0] + ' × ' + (count[1] ?? count[0]) : 'BED MESH'
+
+        return { x: x0, y: y0, w: x1 - x0, h: y1 - y0, label }
+    }
+
+    get qglPoints(): { x: number; y: number }[] {
+        const values = this.numbers(this.settings.quad_gantry_level?.points)
+        const points: { x: number; y: number }[] = []
+        for (let i = 0; i + 1 < values.length; i += 2) {
+            if (isNaN(values[i]) || isNaN(values[i + 1])) continue
+            const [x, y] = this.toSvg(values[i], values[i + 1])
+            points.push({ x, y })
+        }
+
+        return points
+    }
+
+    // beside the back-left probe point
+    get qglLabel(): { x: number; y: number } {
+        const topLeft = [...this.qglPoints].sort((a, b) => a.y - b.y || a.x - b.x)[0]
+
+        return { x: topLeft.x + 12, y: topLeft.y - 8 }
     }
 
     toSvg(x: number, y: number): [number, number] {
@@ -206,6 +262,38 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
     font-size: 9px;
     letter-spacing: 1px;
     fill: rgba(255, 255, 255, 0.4);
+}
+
+.cxm-mesh {
+    fill: rgba(255, 138, 31, 0.05);
+    stroke: rgba(255, 138, 31, 0.45);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+}
+
+.cxm-mesh-lbl {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    fill: rgba(255, 179, 92, 0.8);
+}
+
+.cxm-qgl {
+    fill: rgba(46, 204, 113, 0.25);
+    stroke: #2ecc71;
+    stroke-width: 1.2;
+}
+
+.cxm-qgl-cross {
+    stroke: #2ecc71;
+    stroke-width: 1;
+}
+
+.cxm-qgl-lbl {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    fill: #5fe39a;
 }
 
 .cxm-safe {
