@@ -13,6 +13,7 @@
 
         <cxm-recovery v-if="shownTab === 'recovery'" />
         <page-console v-else-if="shownTab === 'console'" class="cxm-tab-console" />
+        <page-heightmap v-else-if="shownTab === 'heightmap'" />
         <page-machine v-else-if="shownTab === 'machine'" />
 
         <div v-else-if="shownTab === 'control'">
@@ -79,8 +80,9 @@ function loadTab(): string {
     components: {
         CxmRecovery,
         CxmHotendTiles,
-        // the full Mainsail Console and Machine pages, loaded only when their tab is opened
+        // the full Mainsail Console, Heightmap and Machine pages, loaded only when their tab is opened
         PageConsole: () => import('@/pages/Console.vue'),
+        PageHeightmap: () => import('@/pages/Heightmap.vue'),
         PageMachine: () => import('@/pages/Machine.vue'),
         CxmToolsPanel,
         CxmGantryPanel,
@@ -99,6 +101,7 @@ export default class PageCockpit extends Mixins(BaseMixin) {
             { id: 'cockpit', title: 'Cockpit' },
             { id: 'control', title: 'Control' },
             { id: 'console', title: 'Console' },
+            { id: 'heightmap', title: 'Heightmap' },
             { id: 'machine', title: 'Machine' },
         ]
         if (cxmRecovery.open) tabs.push({ id: 'recovery', title: 'Recovery' })
