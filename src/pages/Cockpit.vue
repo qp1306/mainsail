@@ -12,6 +12,9 @@
         </div>
 
         <cxm-recovery v-if="shownTab === 'recovery'" />
+        <page-console v-else-if="shownTab === 'console'" class="cxm-tab-console" />
+        <page-heightmap v-else-if="shownTab === 'heightmap'" />
+        <page-machine v-else-if="shownTab === 'machine'" />
 
         <v-row v-else-if="shownTab === 'control'">
             <v-col class="col-12 col-lg-6 d-flex flex-column cxm-fill-last">
@@ -71,6 +74,10 @@ function loadTab(): string {
 @Component({
     components: {
         CxmRecovery,
+        // the full Mainsail pages, loaded only when their tab is opened
+        PageConsole: () => import('@/pages/Console.vue'),
+        PageHeightmap: () => import('@/pages/Heightmap.vue'),
+        PageMachine: () => import('@/pages/Machine.vue'),
         CxmToolsPanel,
         CxmGantryPanel,
         StatusPanel,
@@ -87,6 +94,9 @@ export default class PageCockpit extends Mixins(BaseMixin) {
         const tabs = [
             { id: 'cockpit', title: 'Cockpit' },
             { id: 'control', title: 'Control' },
+            { id: 'console', title: 'Console' },
+            { id: 'heightmap', title: 'Heightmap' },
+            { id: 'machine', title: 'Machine' },
         ]
         if (cxmRecovery.open) tabs.push({ id: 'recovery', title: 'Recovery' })
 
@@ -130,6 +140,12 @@ export default class PageCockpit extends Mixins(BaseMixin) {
     display: flex;
     gap: 6px;
     border-bottom: 1px solid #263045;
+    overflow-x: auto;
+}
+
+/* the Console page sizes its log to the window: make room for the tab bar above it */
+.cxm-tab-console ::v-deep .consoleScrollContainer {
+    height: calc(var(--app-height) - 250px);
 }
 
 .cxm-tab {
