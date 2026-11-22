@@ -101,12 +101,23 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
     mdiFloorPlan = mdiFloorPlan
     pad = 10
 
+    // the travel area, widened on the narrower side so the bed mesh sits with the
+    // same gap left and right (the extra strip is past the end of travel: nothing is drawn there)
     get lim(): { x0: number; x1: number; y0: number; y1: number } {
         const toolhead = this.$store.state.printer.toolhead ?? {}
         const min = toolhead.axis_minimum ?? [0, 0]
         const max = toolhead.axis_maximum ?? [350, 350]
+        let x0 = min[0]
+        let x1 = max[0]
 
-        return { x0: min[0], x1: max[0], y0: min[1], y1: max[1] }
+        const mesh = this.meshRaw
+        if (mesh) {
+            const gap = Math.max(mesh.min[0] - x0, x1 - mesh.max[0])
+            x0 = Math.min(x0, mesh.min[0] - gap)
+            x1 = Math.max(x1, mesh.max[0] + gap)
+        }
+
+        return { x0, x1, y0: min[1], y1: max[1] }
     }
 
     get width(): number {
@@ -130,15 +141,23 @@ export default class CxmGantryPanel extends Mixins(CxmMixin) {
         return []
     }
 
-    get mesh(): { x: number; y: number; w: number; h: number; label: string } | null {
+    // mesh corners in printer mm
+    get meshRaw(): { min: number[]; max: number[] } | null {
         const bedMesh = this.settings.bed_mesh
         const min = this.numbers(bedMesh?.mesh_min)
         const max = this.numbers(bedMesh?.mesh_max)
         if (min.length < 2 || max.length < 2 || min.some(isNaN) || max.some(isNaN)) return null
 
-        const [x0, y0] = this.toSvg(min[0], max[1])
-        const [x1, y1] = this.toSvg(max[0], min[1])
-        const count = this.numbers(bedMesh?.probe_count)
+        return { min, max }
+    }
+
+    get mesh(): { x: number; y: number; w: number; h: number; label: string } | null {
+        const raw = this.meshRaw
+        if (!raw) return null
+
+        const [x0, y0] = this.toSvg(raw.min[0], raw.max[1])
+        const [x1, y1] = this.toSvg(raw.max[0], raw.min[1])
+        const count = this.numbers(this.settings.bed_mesh?.probe_count)
         const label = count.length ? 'BED MESH ' + count[0] + ' × ' + (count[1] ?? count[0]) : 'BED MESH'
 
         return { x: x0, y: y0, w: x1 - x0, h: y1 - y0, label }
