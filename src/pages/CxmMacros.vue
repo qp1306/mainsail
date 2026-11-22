@@ -320,8 +320,8 @@ const JOBS: Job[] = [
         title: 'Print',
         subtitle: 'Where the print is up to',
         icon: mdiPrinter3d,
-        left: ['status', 'chamber'],
-        right: ['steps', 'console'],
+        left: ['status', 'console', 'chamber'],
+        right: ['steps'],
     },
     {
         id: 'fix',
