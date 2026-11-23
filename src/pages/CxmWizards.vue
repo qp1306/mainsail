@@ -277,6 +277,7 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     sentAt = 0
     sawBusy = false
     runningTimer: number | null = null
+    dockModeTimer: number | null = null
 
     get wizardList(): Wizard[] {
         return WIZARDS
@@ -641,12 +642,35 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
         this.nextStep()
     }
 
+    // Dock setup: while the Dock setup wizard is open, CXM ignores the carriage switch
+    // (CXM_DOCK_MODE), across every dock saved. Leaving the page or picking another wizard
+    // turns the switch checks back on. Klipper also ends the mode by itself after 30 minutes.
+    get dockMode(): boolean {
+        return this.wizard === 'dock' && !this.printing && this.cxmInstalled
+    }
+
+    @Watch('dockMode')
+    dockModeChanged(on: boolean) {
+        this.sendDockMode(on)
+    }
+
+    sendDockMode(on: boolean) {
+        if (on && this.printing) return
+
+        this.$store.dispatch('printer/sendGcode', `CXM_DOCK_MODE ON=${on ? 1 : 0}`)
+    }
+
     mounted() {
         this.runningTimer = window.setInterval(() => this.checkRunning(), 1000)
+        if (this.dockMode) this.sendDockMode(true)
+        // keep it on while the page stays open (Klipper drops it after 30 min without this)
+        this.dockModeTimer = window.setInterval(() => this.dockMode && this.sendDockMode(true), 10 * 60 * 1000)
     }
 
     beforeDestroy() {
         if (this.runningTimer !== null) window.clearInterval(this.runningTimer)
+        if (this.dockModeTimer !== null) window.clearInterval(this.dockModeTimer)
+        if (this.dockMode) this.sendDockMode(false)
     }
 }
 </script>
