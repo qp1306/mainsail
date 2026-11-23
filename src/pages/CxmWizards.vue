@@ -48,17 +48,6 @@
                         T{{ n }}
                     </button>
                 </div>
-                <div v-if="wizard === 'dock'" class="cxm-wiz-opts">
-                    <v-text-field
-                        v-model="dockX"
-                        label="Dock X (mm)"
-                        outlined
-                        dense
-                        hide-details
-                        class="cxm-wiz-field"
-                        :placeholder="savedDockX" />
-                    <span class="cxm-wiz-sub ml-3">roughly where the dock is; you jog in from there</span>
-                </div>
                 <div v-if="wizard === 'test'" class="cxm-wiz-opts">
                     <span class="cxm-wiz-opt-lbl">Hotends</span>
                     <button
@@ -267,7 +256,6 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     step = 0
     finished = false
     tool = 0
-    dockX = ''
     cycles = '5'
     camPicked: number[] | null = null // null: every enabled hotend
     testPicked: number[] | null = null // null: every enabled hotend
@@ -323,12 +311,6 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
         return this.wizard === 'dock'
     }
 
-    get savedDockX(): string {
-        const value = this.cxmVars['t' + this.tool + '_dock_x']
-
-        return value === undefined ? '' : String(value)
-    }
-
     get macros(): PrinterStateMacro[] {
         return this.$store.getters['printer/getMacros'] ?? []
     }
@@ -376,34 +358,30 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
     get steps(): Step[] {
         const n = this.tool
         switch (this.wizard) {
-            case 'dock': {
-                const x = (this.dockX || this.savedDockX).trim()
+            case 'dock':
                 return [
                     {
-                        title: 'Go to the dock',
-                        command: x ? `CXM_DOCK_GOTO TOOL=${n} X=${x}` : 'CXM_DOCK_GOTO',
-                        caption: `With the carriage empty, it moves in front of T${n}'s dock at X ${x ? Math.round(parseFloat(x) * 10) / 10 : '?'}.`,
+                        title: 'Go to the loading spot',
+                        command: `CXM_DOCK_GOTO TOOL=${n}`,
+                        caption: `The empty carriage moves to the middle of X at Y150, so you can fit T${n} on it by hand.`,
                         scene: { kind: 'dock', tool: n },
                         panels: ['toolhead'],
-                        ready: x !== '',
-                        notReady: 'Enter the dock X first.',
                     },
                     {
-                        title: 'Jog in, unlatched',
+                        title: `Fit T${n}, jog it in latched`,
                         command: '',
-                        caption: `Jog the carriage into T${n}'s dock with the latch open until it sits right. Small steps near the dock.`,
+                        caption: `Fit T${n} on the carriage, latched. Line X up with its dock, then jog Y in until T${n} sits fully in its dock, still latched. Small steps near the dock.`,
                         scene: { kind: 'jog', tool: n },
                         panels: ['toolhead'],
                     },
                     {
-                        title: 'Save the dock',
+                        title: 'Save and release',
                         command: `CXM_DOCK_SAVE TOOL=${n}`,
-                        caption: `The carriage position is saved as T${n}'s dock.`,
+                        caption: `T${n}'s dock is saved. The carriage unlatches (moves left by the latch shift), leaves T${n} parked and returns empty to the loading spot for the next hotend.`,
                         scene: { kind: 'save', tool: n },
                         panels: ['console'],
                     },
                 ]
-            }
             case 'test': {
                 const cycles = parseInt(this.cycles) || 5
                 const tools = this.toolNumbers.filter((t) => this.testTools.includes(t))
@@ -571,7 +549,6 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
 
     setTool(n: number) {
         this.tool = n
-        this.dockX = ''
         this.reset()
     }
 
