@@ -424,9 +424,9 @@ export default class PageCxmWizards extends Mixins(CxmMixin) {
                 })
                 steps.push({
                     title: tools.length ? `Save T${previous}, check them all` : 'Check',
-                    command: tools.length ? `CXM_CAM_VERIFY TOOLS=${tools.join(',')}` : 'CXM_CAM_VERIFY',
+                    command: tools.length ? `CXM_CAM_VERIFY TOOLS=0,${tools.join(',')}` : 'CXM_CAM_VERIFY',
                     caption: `With T${previous} on the cross: it is saved, then each hotend visits the camera so you can check it lands on the cross.`,
-                    scene: { kind: 'verify', tool: tools[0] ?? 0 },
+                    scene: { kind: 'verify', tool: 0 },
                     panels: ['nozzle', 'console'],
                 })
 
