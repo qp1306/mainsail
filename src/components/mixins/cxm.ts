@@ -52,6 +52,36 @@ function splitList(value: unknown): string[] {
     return text.split(';').map((v) => v.trim().replace(/^"(.*)"$/, '$1'))
 }
 
+// very dark filaments (black, navy) are lifted towards white so they stay visible on the dark theme
+export function cxmVisibleHex(hex: string): string {
+    const value = parseInt(hex.slice(1), 16)
+    const rgb = [value >> 16, (value >> 8) & 255, value & 255]
+    if (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] >= 90) return hex
+
+    return (
+        '#' +
+        rgb
+            .map((c) => Math.round(c + (255 - c) * 0.55))
+            .map((c) => c.toString(16).padStart(2, '0'))
+            .join('')
+    )
+}
+
+// the loaded print file's filament colour for a hotend heater (extruder, extruder1 ...), made visible; null if none
+export function cxmHeaterColor(currentFile: Record<string, unknown> | null | undefined, heater: string): string | null {
+    const match = /^extruder(\d*)$/.exec(heater)
+    if (!match) return null
+
+    const n = match[1] === '' ? 0 : parseInt(match[1])
+    const file = currentFile ?? {}
+    const colors = splitList(file.filament_colors).length
+        ? splitList(file.filament_colors)
+        : splitList(file.extruder_colors)
+    const hex = normHex(colors[n])
+
+    return hex ? cxmVisibleHex(hex) : null
+}
+
 @Component
 export default class CxmMixin extends Mixins(BaseMixin) {
     get cxmInstalled(): boolean {
@@ -143,17 +173,7 @@ export default class CxmMixin extends Mixins(BaseMixin) {
     // a colour to use for text, outlines and glows: very dark filaments (black, navy)
     // are lifted towards white so they stay visible on the dark theme
     cxmVisible(hex: string): string {
-        const value = parseInt(hex.slice(1), 16)
-        const rgb = [value >> 16, (value >> 8) & 255, value & 255]
-        if (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] >= 90) return hex
-
-        return (
-            '#' +
-            rgb
-                .map((c) => Math.round(c + (255 - c) * 0.55))
-                .map((c) => c.toString(16).padStart(2, '0'))
-                .join('')
-        )
+        return cxmVisibleHex(hex)
     }
 
     cxmTextOn(hex: string): string {

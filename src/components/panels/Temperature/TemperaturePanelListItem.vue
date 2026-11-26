@@ -77,6 +77,7 @@ import Component from 'vue-class-component'
 import { Mixins, Prop } from 'vue-property-decorator'
 import type { LongpressEvent } from '@/directives/longpress'
 import BaseMixin from '@/components/mixins/base'
+import { cxmHeaterColor } from '@/components/mixins/cxm'
 import { convertName } from '@/plugins/helpers'
 import {
     mdiCog,
@@ -166,6 +167,10 @@ export default class TemperaturePanelListItem extends Mixins(BaseMixin) {
     }
 
     get color() {
+        // CXM: a hotend takes the colour of its filament in the loaded print file
+        const cxm = cxmHeaterColor(this.$store.state.printer.current_file, this.objectName)
+        if (cxm) return cxm
+
         return this.$store.getters['printer/tempHistory/getDatasetColor'](this.objectName) ?? '#FFFFFF'
     }
 
