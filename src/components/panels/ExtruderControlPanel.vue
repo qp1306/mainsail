@@ -109,6 +109,8 @@
             <v-divider v-if="showTools || showExtrusionFactor || showPressureAdvance || showFirmwareRetraction" />
             <extruder-control-panel-control />
         </template>
+        <!-- CXM: filament change mode (carriage sensor ignored) -->
+        <cxm-filament-change />
     </panel>
 </template>
 
@@ -119,8 +121,9 @@ import { PrinterStateMacro } from '@/store/printer/types'
 import BaseMixin from '@/components/mixins/base'
 import ControlMixin from '@/components/mixins/control'
 import ExtruderMixin from '@/components/mixins/extruder'
+import CxmFilamentChange from '@/components/cxm/CxmFilamentChange.vue'
 
-@Component
+@Component({ components: { CxmFilamentChange } })
 export default class ExtruderControlPanel extends Mixins(BaseMixin, ControlMixin, ExtruderMixin) {
     mdiPrinter3dNozzle = mdiPrinter3dNozzle
     mdiDotsVertical = mdiDotsVertical

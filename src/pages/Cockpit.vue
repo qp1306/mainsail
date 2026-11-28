@@ -1,5 +1,6 @@
 <template>
     <div>
+        <cxm-filament-change banner />
         <div class="cxm-tabs mb-4">
             <button
                 v-for="item in tabs"
@@ -55,6 +56,7 @@ import { Mixins, Watch } from 'vue-property-decorator'
 import BaseMixin from '@/components/mixins/base'
 import CxmRecovery from '@/components/cxm/CxmRecovery.vue'
 import CxmHotendTiles from '@/components/cxm/CxmHotendTiles.vue'
+import CxmFilamentChange from '@/components/cxm/CxmFilamentChange.vue'
 import { cxmRecovery } from '@/components/cxm/recoveryStore'
 import CxmToolsPanel from '@/components/panels/Cxm/CxmToolsPanel.vue'
 import CxmGantryPanel from '@/components/panels/Cxm/CxmGantryPanel.vue'
@@ -80,6 +82,7 @@ function loadTab(): string {
     components: {
         CxmRecovery,
         CxmHotendTiles,
+        CxmFilamentChange,
         // the full Mainsail Console, Heightmap and Machine pages, loaded only when their tab is opened
         PageConsole: () => import('@/pages/Console.vue'),
         PageHeightmap: () => import('@/pages/Heightmap.vue'),
